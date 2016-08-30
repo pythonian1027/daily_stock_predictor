@@ -25,16 +25,26 @@ class LearningAgent(Agent):
         # TODO: Update state
         self.state = (inputs,self.next_waypoint, deadline)
         print 'inputs = ' + str(inputs)
-        print 'deadline =  ' + str(deadline)
-        print 'next_waypoint = ' + str(self.next_waypoint)
-        
+#        print 'deadline =  ' + str(deadline)
+#        print 'next_waypoint = ' + str(self.next_waypoint)
+#        print 'states : ' + str(self.state)
+#        
         # TODO: Select action according to your policy
 #        set_of_actions = [None, 'left', 'right', 'forward']
-        action = random.choice(Environment.valid_actions[1:])        
+        action = random.choice(Environment.valid_actions)        
 
         # Execute action and get reward
         reward = self.env.act(self, action)
-
+        print 'reward: ' + str(reward)
+        
+        d = dict()
+        d['light'] = 'red', 'green'
+        d['oncoming'] =  None, 'left', 'right', 'green'
+        d['left'] = None, 'left', 'right', 'green'
+        d['right'] = None, 'left', 'right', 'green'
+        d['next_way_point'] = 'forward', 'right', 'green'
+        
+    
         # TODO: Learn policy based on state, action, reward
 
 #        print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
@@ -50,7 +60,7 @@ def run():
     # NOTE: You can set enforce_deadline=False while debugging to allow longer trials
 
     # Now simulate it
-    sim = Simulator(e, update_delay=3, display=True)  # create simulator (uses pygame when display=True, if available)
+    sim = Simulator(e, update_delay=0.5, display=True)  # create simulator (uses pygame when display=True, if available)
     # NOTE: To speed up simulation, reduce update_delay and/or set display=False
 
     sim.run(n_trials=100)  # run for a specified number of trials
