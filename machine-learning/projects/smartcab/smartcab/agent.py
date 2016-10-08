@@ -43,7 +43,7 @@ class LearningAgent(Agent):
 
 
         # TODO: Select action according to your policy
-        if self.alpha > 0.00025:
+        if self.alpha > 0.000025:
             action = random.choice(Environment.valid_actions)        
             action_idx = Environment.valid_actions.index(action)
         
@@ -97,6 +97,9 @@ class LearningAgent(Agent):
 #                    exit()
             
             print str(len(self.states_dict))
+            if len(self.states_dict) == 80:
+                print self.states_dict
+#                
             print 'alpha: ' + str(self.alpha)
             print ' t : ' + str(self.t)
                
@@ -106,25 +109,26 @@ class LearningAgent(Agent):
 #            action = random.choice(Environment.valid_actions)#[ind]
             for item in self.Q:
                 print item[1]
-            exit()
+                print len(self.states_dict)
+            
                             
             
-            for k,v in self.states_dict.iteritems():                   
-               if states == v:
-                   print 'found an instance: ' + str(v)
-                   ind, maxRwd = max(enumerate(self.Q[k][1]))
-                   action = random.choice(Environment.valid_actions)#[ind]
-                   print k,ind, action, len(self.states_dict)
-                   print self.Q[k][1]
-               else:
-                   print 'else'
-                   action = random.choice(Environment.valid_actions)    
+#            for k,v in self.states_dict.iteritems():                   
+#               if states == v:
+#                   print 'found an instance: ' + str(v)
+#                   ind, maxRwd = max(enumerate(self.Q[k][1]))
+#                   action = random.choice(Environment.valid_actions)#[ind]
+#                   print k,ind, action, len(self.states_dict)
+#                   print self.Q[k][1]
+#               else:
+#                   print 'else'
+#                   action = random.choice(Environment.valid_actions)    
+#                   
+#                        # Execute action and get reward
+#            reward = self.env.act(self, action)
                    
-                        # Execute action and get reward
-            reward = self.env.act(self, action)
                    
-                   
-        print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
+#        print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
 
 
 def run():
