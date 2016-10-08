@@ -17,6 +17,8 @@ class LearningAgent(Agent):
         self.t = 1 #time initialization
         self.alpha = 1/self.t
         self.action_idxs = zip(range(0,4), Environment.valid_actions)
+        self.use_random_action = True
+        self.L = list()
         
         self.found = False
         
@@ -33,100 +35,111 @@ class LearningAgent(Agent):
         # Gather inputs
         self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
         inputs = self.env.sense(self)
-        deadline = self.env.get_deadline(self)
+#        deadline = self.env.get_deadline(self)
 
         # TODO: Update state
-        states = inputs
-        states['next_waypoint'] = self.planner.next_waypoint()
+        curr_state = inputs
+        curr_state['next_waypoint'] = self.planner.next_waypoint()
 #        states['deadline'] = self.env.get_deadline(self)
-        self.state = (states)
+        self.state = (curr_state)
 
 
         # TODO: Select action according to your policy
         if self.alpha > 0.000025:
-            action = random.choice(Environment.valid_actions)        
+            
+            
+            self.L.append(self.use_random_action)
+            found_state = False
+            if self.use_random_action:
+                action = random.choice(Environment.valid_actions)        
+            else:
+                for (a,b) in self.Q:
+                    if a == curr_state and len(self.Q) > 130:
+#                        print b
+                        act_idx = b.index(max(b))
+                        action = Environment.valid_actions[act_idx]    
+#                        print action
+#                        action = random.choice(Environment.valid_actions)   
+#                        print "this learned action: " + str(curr_state)
+                        found_state = True
+                        break
+                if not found_state:
+                    action = random.choice(Environment.valid_actions)        
+#                    print "curr_state not found "  + str(len(self.Q))
+                        
+                         
             action_idx = Environment.valid_actions.index(action)
+#            print " ...." + str(action)
+            
         
             # Execute action and get reward
             reward = self.env.act(self, action)
-            print 'reward: ' + str(reward)
+#            print 'reward: ' + str(reward)
         ################ Q-learning equation ############################
         #Q (state, action) = R(state, action) + Gamma * Max[Q(next state, all actions)]
         
         #Q(1, 5) = R(1, 5) + 0.8 * Max[Q(5, 1), Q(5, 4), Q(5, 5)] = 100 + 0.8 * 0 = 100
         #################################################################        
-            print '*'*31
+#            print '*'*31
             
             
             self.found = False
             for k,v in self.states_dict.iteritems():                   
-                if states == v:
-                    print 'found an instance: ' + str(v)
-        
+                if curr_state == v:
+#                    print 'found an instance: ' + str(v)
+                    self.use_random_action = False
+#                    self.L.append(self.use_random_action)
                     try:
+#                        Q-learning equation V->(1-alpha)V + alpha(X)
                         self.Q[k][1][action_idx] = (1 - self.alpha) * (self.Q[k][1][action_idx]) +\
                         (self.alpha) * (reward + self.gamma*max(self.Q[action_idx][1]))
                         
                     except IndexError:
-                        self.Q.append((states, [0.0]*4))
+                        # random initialization of action vector range [-0.5 2.5]
+                        self.Q.append((curr_state, [3*random.random() - 0.5 for i in xrange(4)]))
                         self.Q[k][1][action_idx] = (1 - self.alpha) * (self.Q[k][1][action_idx]) +\
                         (self.alpha) * (reward + self.gamma*max(self.Q[-1][1]))
-                    print "k: " + str(k)
+#                    print "k: " + str(k)
         #                self.Q[k] = q.append(zip(Environment.valid_actions, [0]*4))
                     self.found = True
                     break            
                     
             if self.found == False:
-                print 'not found'            
-                self.states_dict[len(self.states_dict)] = states   
-                #initialize instance with 3-typle [state, actions, rewards]
+                print self.alpha
+#                use random action on next iteration when curr_state is not found in dictionary of states
+                self.use_random_action = True
+#                self.L.append(self.use_random_action)
+#                print '\n\n\nnot found'      
+#                print curr_state
+#                for k,v in self.states_dict.iteritems():
+#                    print v
+                    
+                #add the curr_state to dictionary of states
+                self.states_dict[len(self.states_dict)] = curr_state   
                 
-                self.Q.append((states, [0.0]*4))  
+                #initialize instance with 3-typle [state, actions, rewards]                
+                self.Q.append((curr_state, [3*random.random() - 0.5 for i in xrange(4)]))  
+#                print self.Q
                 try:
                     self.Q[-1][1][action_idx] = (1 - self.alpha) * (self.Q[-1][1][action_idx]) +\
                     (self.alpha) * (reward + self.gamma*max(self.Q[action_idx][1]))
         
                 except IndexError:
-                    self.Q.append((states, [0.0]*4))
+#                    the future action, Q[-2], is used to estimate Q[-1]
+                    self.Q.append((curr_state, [3*random.random() - 0.5 for i in xrange(4)]))
                     self.Q[-2][1][action_idx] = (1 - self.alpha) * (self.Q[-2][1][action_idx]) +\
                     (self.alpha) * (reward + self.gamma*max(self.Q[-1][1]))                                
         #            self.Q[-1][1][action_idx] = reward
                 
-                if len(self.states_dict) == 20:
-                    print self.Q
-#                    exit()
             
-            print str(len(self.states_dict))
-            if len(self.states_dict) == 80:
-                print self.states_dict
-#                
-            print 'alpha: ' + str(self.alpha)
-            print ' t : ' + str(self.t)
-               
-                 
+            
         # TODO: Learn policy based on state, action, reward
+                    
         else:
-#            action = random.choice(Environment.valid_actions)#[ind]
-            for item in self.Q:
-                print item[1]
-                print len(self.states_dict)
-            
-                            
-            
-#            for k,v in self.states_dict.iteritems():                   
-#               if states == v:
-#                   print 'found an instance: ' + str(v)
-#                   ind, maxRwd = max(enumerate(self.Q[k][1]))
-#                   action = random.choice(Environment.valid_actions)#[ind]
-#                   print k,ind, action, len(self.states_dict)
-#                   print self.Q[k][1]
-#               else:
-#                   print 'else'
-#                   action = random.choice(Environment.valid_actions)    
-#                   
-#                        # Execute action and get reward
-#            reward = self.env.act(self, action)
-                   
+            pass
+#        print len(self.Q)
+#        print len(self.states_dict)
+        
                    
 #        print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
 
@@ -141,10 +154,10 @@ def run():
     # NOTE: You can set enforce_deadline=False while debugging to allow longer trials
 
     # Now simulate it
-    sim = Simulator(e, update_delay=0.0001, display=False)  # create simulator (uses pygame when display=True, if available)
+    sim = Simulator(e, update_delay=0.0001, display=True)  # create simulator (uses pygame when display=True, if available)
     # NOTE: To speed up simulation, reduce update_delay and/or set display=False
 
-    sim.run(n_trials=100)  # run for a specified number of trials
+    sim.run(n_trials=1000)  # run for a specified number of trials
     # NOTE: To quit midway, press Esc or close pygame window, or hit Ctrl+C on the command-line
 
 
