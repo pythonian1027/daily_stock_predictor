@@ -45,7 +45,7 @@ class Environment(object):
         self.bounds = (1, 1, self.grid_size[0], self.grid_size[1])
         self.block_size = 100
         self.intersections = OrderedDict()
-        self.roads = []
+        self.roads = []        
         for x in xrange(self.bounds[0], self.bounds[2] + 1):
             for y in xrange(self.bounds[1], self.bounds[3] + 1):
                 self.intersections[(x, y)] = TrafficLight()  # a traffic light at each intersection
@@ -64,6 +64,7 @@ class Environment(object):
         # Primary agent and associated parameters
         self.primary_agent = None  # to be set explicitly
         self.enforce_deadline = False
+        self.outcomeRegister = list()  # for testing results
 
     def create_agent(self, agent_class, *args, **kwargs):
         agent = agent_class(self, *args, **kwargs)
@@ -126,6 +127,7 @@ class Environment(object):
             elif self.enforce_deadline and agent_deadline <= 0:
                 self.done = True
                 print "Environment.step(): Primary agent ran out of time! Trial aborted."
+                self.outcomeRegister.append(0)
             self.agent_states[self.primary_agent]['deadline'] = agent_deadline - 1
 
         self.t += 1
@@ -211,6 +213,8 @@ class Environment(object):
                     reward += 10  # bonus
                 self.done = True
                 print "Environment.act(): Primary agent has reached destination!"  # [debug]
+                self.outcomeRegister.append(1)
+                
             self.status_text = "state: {}\naction: {}\nreward: {}".format(agent.get_state(), action, reward)
             #print "Environment.act() [POST]: location: {}, heading: {}, action: {}, reward: {}".format(location, heading, action, reward)  # [debug]
 

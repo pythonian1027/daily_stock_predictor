@@ -34,6 +34,7 @@ class Simulator(object):
         self.current_time = 0.0
         self.last_updated = 0.0
         self.update_delay = update_delay  # duration between each step (in secs)
+        self.perf = 0 #variable to measure performance over sets of trials
 
         self.display = display        
         if self.display:
@@ -61,6 +62,7 @@ class Simulator(object):
 
     def run(self, n_trials=1):
         self.quit = False
+        perf = 0 # measures performance over n_trials
         for trial in xrange(n_trials):
             print "Simulator.run(): Trial {}".format(trial)  # [debug]
             self.env.reset()
@@ -101,7 +103,9 @@ class Simulator(object):
                 finally:
                     if self.quit or self.env.done:
                         break
-
+            if trial  == n_trials - 1:
+#                print self.env.outcomeRegister[-10:]
+                self.perf = sum(self.env.outcomeRegister[-10:])/10.                  
             if self.quit:
                 break
 
