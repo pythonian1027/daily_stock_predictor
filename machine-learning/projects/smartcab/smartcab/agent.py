@@ -64,15 +64,14 @@ class LearningAgent(Agent):
         
         # Gather inputs
         self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
-        inputs = self.env.sense(self)      
+        curr_state= self.env.sense(self)      
 #        deadline = self.env.get_deadline(self)
 
         # TODO: Update state
-        curr_state = inputs
+        
         curr_state['next_waypoint'] = self.planner.next_waypoint()
 
-        #state <- ['light', 'oncoming', 'left', 'right', 'next_waypoint']
-        self.state = curr_state
+        #state <- ['light', 'oncoming', 'left', 'right', 'next_waypoint']        
 
         # TODO: Select action according to your policy
         #chooses a random action if random is lesser than currect epsilon
@@ -81,17 +80,15 @@ class LearningAgent(Agent):
         if random.random() < self.calculateEpsilon():
             action = random.choice(Environment.valid_actions)
             action_idx = Environment.valid_actions.index(action)
+
         else:
-            for k,v in self.Q.iteritems():
-                if list(k) ==   [curr_state['light'], \
-                                curr_state['oncoming'],\
-                                curr_state['right'],\
-                                curr_state['left'],\
-                                curr_state['next_waypoint'] ]:
-                    action_idx = v.index(max(v)) #index of the action taken 
-                    #['light', 'oncoming', 'left', 'right', 'next_waypoint']
-                    action = Environment.valid_actions[action_idx]   
-                    break                                
+                        
+            v = self.Q[curr_state['light'], curr_state['oncoming'],
+                curr_state['right'], curr_state['left'],curr_state['next_waypoint']]
+            action_idx = v.index(max(v)) #index of the action taken 
+            #['light', 'oncoming', 'left', 'right', 'next_waypoint']
+            action = Environment.valid_actions[action_idx]   
+                    
                 
         reward = self.env.act(self, action)
         
