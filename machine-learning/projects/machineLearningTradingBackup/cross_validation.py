@@ -11,6 +11,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.tree import  DecisionTreeRegressor
 from sklearn.cross_validation import train_test_split
 from sklearn.cross_validation import KFold
+import numpy as np
 
 
 def rsquare_performance(real_data, pred_data):        
@@ -23,11 +24,15 @@ def split_data(df):
     X_train, X_test, y_train, y_test = train_test_split( features, df, test_size = 0.2, random_state = 23 )
     
 def test_run():
-    kf = KFold(200, n_folds=5)
+    kf = KFold(n = 200, n_folds = 5, shuffle = False, random_state = None)
+
     for train, test in kf:
         print("%s %s" % (train, test))
-    
+
+def set_partition():
+    print np.arange(50)    
     
     
 if __name__ == "__main__":
-    test_run()
+#    test_run()
+    set_partition()

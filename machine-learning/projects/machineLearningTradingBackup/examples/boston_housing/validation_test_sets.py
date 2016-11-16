@@ -24,4 +24,4 @@ X_train, X_test, y_train, y_test = train_test_split(features, prices, test_size 
 print (y_test)
 cv_sets = ShuffleSplit(X_train.shape[0], n_iter = 10, test_size = 0.20, random_state = 0)
 
-print cv_sets
+print cv_sets.n_train, cv_sets.n_test
