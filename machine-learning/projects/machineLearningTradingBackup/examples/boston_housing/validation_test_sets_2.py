@@ -17,12 +17,15 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-#cwd = os.getcwd()
-#os.chdir('../../')
-path = '/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
+
+cwd = os.getcwd()
+print cwd
+os.chdir('../../')
+cwd = os.getcwd()
+#path = '/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
 #path = os.path.abspath(os.path.join(cwd, os.pardir))
-print path
-def symbol_to_path(symbol, base_dir=path + '/data/'):
+#print path
+def symbol_to_path(symbol, base_dir=cwd + '/data/'):
     """Return CSV file path given ticker symbol."""    
     return os.path.join(base_dir, "{}.csv".format(str(symbol)))
 
