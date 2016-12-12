@@ -94,6 +94,7 @@ if __name__ == "__main__":
     # on the command line)
     symbol = 'SPY'
     bars = quandl.get("GOOG/NYSE_%s" % symbol, collapse="daily")
+    print bars
 
     # Create a set of random forecasting signals for SPY
     rfs = RandomForecastingStrategy(symbol, bars)
