@@ -12,6 +12,9 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.tree import  DecisionTreeRegressor
 from sklearn.cross_validation import train_test_split
 from sklearn.cross_validation import KFold
+from sklearn.metrics import make_scorer, fbeta_score
+from sklearn.grid_search import GridSearchCV
+from sklearn.tree import DecisionTreeRegressor
 import numpy as np
 
 import os
@@ -78,6 +81,28 @@ def get_partition(n_elems, test_sz):
         idxs_test += n_elems_test                        
 #    return idxs_train, idxs_test
     
+def performance_metric(y_true, y_predict):
+    from sklearn.metrics import r2_score
+    score = r2_score(y_true, y_predict)
+    return score
+    
+def fit_model(X,y, cv_sets):
+#    cv_sets = ShuffleSplit(X.shape[0], n_iter = 3, test_size = 0.3, random_state = 0)
+
+    cv_sets = list()
+    s = next(get_partition(100, 0.3))
+    cv_sets.append((s[0], s[1]))
+
+#    for train_idx, test_idx in cv_sets:    
+#        print 'train, tes: {} \t {} '.format(train_idx.shape, test_idx.shape)
+    regressor = DecisionTreeRegressor()
+    params = {'max_depth':[2,3]}
+    scoring_fnc = make_scorer(performance_metric)
+#    grid = GridSearchCV(regressor, params, scoring_fnc, cv = get_partition(100, 0.3))
+    grid = GridSearchCV(regressor, params, scoring_fnc, cv = cv_sets)    
+    grid = grid.fit(X,y)        
+    return grid.best_estimator_    
+    
 if __name__ == "__main__":
 #    test_run()
     dates = pd.date_range('2010-07-01', '2016-07-31')  # one month only
@@ -86,18 +111,57 @@ if __name__ == "__main__":
     print df.shape[0]
     #partition 70% training, 30% testing
     
-    test_sz = 0.3
-    num_days_lookup = 28
-    min_num_train_days = num_days_lookup*10
-    num_folds = int((df.shape[0] - min_num_train_days)/(min_num_train_days*test_sz))
     
-    s = get_partition(min_num_train_days, test_sz)        
+    n_folds = 3    
+    test_sz = 0.2
+    train_sz = (1 - test_sz)
+    train_to_test_ratio = train_sz/test_sz
+    num_elem_test = int(df.shape[0]/(train_to_test_ratio + n_folds))
+    num_elem_train = int(num_elem_test*train_to_test_ratio)
+    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
+    cv_sets = list()    
+    s = get_partition(num_elem_train+num_elem_test, test_sz)
+    for _ in range(n_folds):                
+        idxs = next(s)
+        cv_sets.append((idxs[0], idxs[1]))    
+        
+        print idxs[0]
+        print '\n', df.shape[0]
+    
+#    test_sz = 0.3
+#    num_days_lookup = 28
+#    min_num_train_days = num_days_lookup*10
+#    num_folds = int((df.shape[0] - min_num_train_days)/(min_num_train_days*test_sz))
+    
+#    s = get_partition(min_num_train_days, test_sz)            
+    from sklearn.grid_search import GridSearchCV
+    from sklearn.cross_validation import ShuffleSplit 
+    
+    X_train = np.random.rand(100,2)
+#    y_train = np.random.rand(100,1)
+#    X_train = np.arange(100)
+    y_train = np.arange(100)
+    reg = fit_model(X_train, y_train, cv_sets)
     
     
-    for _ in range(num_folds):
-        cv = next(s)
-        print df.shape
-        X_train =  df.ix[cv[0]]
-        X_test = df.ix[cv[1]]
-        print ([cv[0]], [cv[1]])
+#    rs = ShuffleSplit(X.shape[0], n_iter = 3, random_state = 0, test_size = 0.5)
+#    for train_idx, test_idx in rs:    
+#        print 'train, tes: {} \t {} '.format(train_idx, test_idx)
+        
+
     
+    
+#    print get_partition(100, 0.2)
+#    grid = grid.fit(X,y)
+    
+    
+    
+
+#    
+#    for _ in range(num_folds):
+#        cv = next(s)
+#        print df.shape
+#        X_train =  df.ix[cv[0]]
+#        X_test = df.ix[cv[1]]
+#        print ([cv[0]], [cv[1]])
+#    
