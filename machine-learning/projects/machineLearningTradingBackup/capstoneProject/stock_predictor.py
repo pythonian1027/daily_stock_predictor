@@ -41,12 +41,13 @@ def get_data(symbols, dates):
 
     for symbol in symbols:
         df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
-                parse_dates=True, usecols=['Date', 'Volume', 'Adj Close'], na_values=['nan'])
-        df_temp = df_temp.rename(columns={'Adj Close': symbol + '.adj_close'})
-        df_temp = df_temp.rename(columns={'Volume': symbol + '.volume'})        
+                parse_dates=True, usecols=['Date', 'High', 'Volume', 'Adj Close'], na_values=['nan'])
+        df_temp = df_temp.rename(columns={'Adj Close': symbol + '_adcls'})
+        df_temp = df_temp.rename(columns={'Volume': symbol + '_vol'})        
+        df_temp = df_temp.rename(columns={'High': symbol + '_hi'})        
         df = df.join(df_temp)
         if symbol == 'SPY':  # drop dates SPY did not trade
-            df = df.dropna(subset=["SPY.adj_close"])
+            df = df.dropna(subset=["SPY_adcls"])
     return df
 
 #def plot_data(df, title="Stock prices", xlabel="Date", ylabel="Price"):
@@ -87,30 +88,38 @@ def performance_metric(y_true, y_predict):
     return score
     
 def fit_model(X,y, cv_sets):
-#    cv_sets = ShuffleSplit(X.shape[0], n_iter = 3, test_size = 0.3, random_state = 0)
-
     cv_sets = list()
     s = next(get_partition(100, 0.3))
     cv_sets.append((s[0], s[1]))
 
 #    for train_idx, test_idx in cv_sets:    
 #        print 'train, tes: {} \t {} '.format(train_idx.shape, test_idx.shape)
-    regressor = DecisionTreeRegressor()
-    params = {'max_depth':[2,3]}
+    regressor = DecisionTreeRegressor(random_state = None)
+    params = {'max_depth':[2,3, 4, 7, 9, 11, 15,  20, 57]}
     scoring_fnc = make_scorer(performance_metric)
 #    grid = GridSearchCV(regressor, params, scoring_fnc, cv = get_partition(100, 0.3))
     grid = GridSearchCV(regressor, params, scoring_fnc, cv = cv_sets)    
     grid = grid.fit(X,y)        
     return grid.best_estimator_    
     
-if __name__ == "__main__":
-#    test_run()
+
+def run():    
     dates = pd.date_range('2010-07-01', '2016-07-31')  # one month only
-    symbols = ['SPY','XOM']
+    feats = ['_hi', '_vol', '_adcls']
+    symbols = ['AAPL']
     df = get_data(symbols, dates)   
-    print df.shape[0]
-    #partition 70% training, 30% testing
     
+    #preprocess data/ append adj column for next day (shifteed by 1) as additional 
+    for symbol in symbols:
+#        print symbol
+        df_temp = df.ix[:,['AAPL' + feats[2]]]
+        df_temp = df_temp.rename(columns={'AAPL' + feats[2]: symbol + 'adl_cls_target'})       
+        
+#        print df_temp.shift(1)
+
+        df = df.join(df_temp[1:])    
+        print df
+#    print df
     
     n_folds = 3    
     test_sz = 0.2
@@ -121,28 +130,74 @@ if __name__ == "__main__":
     print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
     cv_sets = list()    
     s = get_partition(num_elem_train+num_elem_test, test_sz)
-    for _ in range(n_folds):                
+#    s = get_partition(10, 0.2)
+    for k in range(n_folds):                
         idxs = next(s)
-        cv_sets.append((idxs[0], idxs[1]))    
+        u = idxs[0]
+        v = idxs[1]
+        cv_sets.append((u.copy(), v.copy()))    
+#        print cv_sets
         
-        print idxs[0]
-        print '\n', df.shape[0]
+    feats = ['_hi', '_vol', '_adcls']
     
-#    test_sz = 0.3
-#    num_days_lookup = 28
-#    min_num_train_days = num_days_lookup*10
-#    num_folds = int((df.shape[0] - min_num_train_days)/(min_num_train_days*test_sz))
+    #calculation for 1 day in advance
+    for s in symbols:        
+        print s
+        features = df.ix[:-1, [s+feats[0], s+feats[1], s+feats[2]]]
+        target = df.ix[1:, s+feats[2]]
+        reg = fit_model(features, target, cv_sets)
+        # Produce the value for 'max_depth'
+        print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])   
+        
+        #predict          
+#        print reg.predict()
+ 
+
+        
+if __name__ == "__main__":
+    run()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
+        
     
-#    s = get_partition(min_num_train_days, test_sz)            
-    from sklearn.grid_search import GridSearchCV
-    from sklearn.cross_validation import ShuffleSplit 
-    
-    X_train = np.random.rand(100,2)
+#    X_train = np.random.rand(100,2)    
 #    y_train = np.random.rand(100,1)
 #    X_train = np.arange(100)
-    y_train = np.arange(100)
-    reg = fit_model(X_train, y_train, cv_sets)
-    
+#    y_train = np.arange(100)
+#    reg = fit_model(features, target, cv_sets)
+    # Produce the value for 'max_depth'
+#    print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])    
     
 #    rs = ShuffleSplit(X.shape[0], n_iter = 3, random_state = 0, test_size = 0.5)
 #    for train_idx, test_idx in rs:    
