@@ -16,6 +16,7 @@ from sklearn.metrics import make_scorer, fbeta_score
 from sklearn.grid_search import GridSearchCV
 from sklearn.tree import DecisionTreeRegressor
 import numpy as np
+import math
 
 import os
 import pandas as pd
@@ -71,15 +72,16 @@ def rsquare_performance(real_data, pred_data):
 #    for train, test in kf:
 #        print("%s %s" % (train, test))
 
-def get_partition(n_elems, test_sz):
-    n_elems_train = int(n_elems - n_elems*test_sz)
-    n_elems_test = n_elems - n_elems_train
-    idxs_train = np.arange(n_elems_train)        
-    idxs_test = np.arange(idxs_train[-1] + 1, n_elems, 1)        
+def get_partition(n_elem_train, n_elem_test):
+#    n_elems_train = int(n_elems - n_elems*test_sz)
+#    n_elems_test = n_elems - n_elems_train
+    idxs_train = np.arange(n_elem_train)        
+    idxs_test = np.arange(idxs_train[-1] + 1, n_elem_train + n_elem_test, 1)        
+#    idxs_test = np.arange(n_elem_test)   
     while True:
         yield idxs_train, idxs_test
-        idxs_train += n_elems_test
-        idxs_test += n_elems_test                        
+        idxs_train += n_elem_test
+        idxs_test += n_elem_test                        
 #    return idxs_train, idxs_test
     
 def performance_metric(y_true, y_predict):
@@ -88,9 +90,9 @@ def performance_metric(y_true, y_predict):
     return score
     
 def fit_model(X,y, cv_sets):
-    cv_sets = list()
-    s = next(get_partition(100, 0.3))
-    cv_sets.append((s[0], s[1]))
+#    cv_sets = list()
+#    s = next(get_partition(100, 0.3))
+#    cv_sets.append((s[0], s[1]))
 
 #    for train_idx, test_idx in cv_sets:    
 #        print 'train, tes: {} \t {} '.format(train_idx.shape, test_idx.shape)
@@ -103,62 +105,103 @@ def fit_model(X,y, cv_sets):
     return grid.best_estimator_    
     
 
-def run():    
-    dates = pd.date_range('2010-07-01', '2016-07-31')  # one month only
-    feats = ['_hi', '_vol', '_adcls']
-    symbols = ['AAPL']
-    df = get_data(symbols, dates)   
-    
+#def run():         
     #preprocess data/ append adj column for next day (shifteed by 1) as additional 
-    for symbol in symbols:
-#        print symbol
-        df_temp = df.ix[:,['AAPL' + feats[2]]]
-        df_temp = df_temp.rename(columns={'AAPL' + feats[2]: symbol + 'adl_cls_target'})       
-        
-#        print df_temp.shift(1)
-
-        df = df.join(df_temp[1:])    
-        print df
-#    print df
+#    for symbol in symbols:
+#        df_temp = df.ix[:,[symbol + feats[2]]]
+#        df_temp = df_temp.rename(columns={symbol + feats[2]: symbol + 'adl_cls_target'})               
+#        df = df.join(df_temp[1:])            
     
-    n_folds = 3    
-    test_sz = 0.2
-    train_sz = (1 - test_sz)
-    train_to_test_ratio = train_sz/test_sz
-    num_elem_test = int(df.shape[0]/(train_to_test_ratio + n_folds))
-    num_elem_train = int(num_elem_test*train_to_test_ratio)
-    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
-    cv_sets = list()    
-    s = get_partition(num_elem_train+num_elem_test, test_sz)
-#    s = get_partition(10, 0.2)
-    for k in range(n_folds):                
-        idxs = next(s)
-        u = idxs[0]
-        v = idxs[1]
-        cv_sets.append((u.copy(), v.copy()))    
-#        print cv_sets
-        
-    feats = ['_hi', '_vol', '_adcls']
-    
-    #calculation for 1 day in advance
-    for s in symbols:        
-        print s
-        features = df.ix[:-1, [s+feats[0], s+feats[1], s+feats[2]]]
-        target = df.ix[1:, s+feats[2]]
-        reg = fit_model(features, target, cv_sets)
-        # Produce the value for 'max_depth'
-        print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])   
-        
+#    n_folds = 3    
+#    test_sz = 0.2
+#    train_sz = (1 - test_sz)
+#    train_to_test_ratio = train_sz/test_sz
+#    num_elem_test = int(df.shape[0]/(train_to_test_ratio + n_folds))
+#    num_elem_train = int(num_elem_test*train_to_test_ratio)
+#    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
+#    cv_sets = list()    
+#    s = get_partition(num_elem_train+num_elem_test, test_sz)
+##    s = get_partition(10, 0.2)
+#    for k in range(n_folds):                
+#        idxs = next(s)
+#        u = idxs[0]
+#        v = idxs[1]
+#        cv_sets.append((u.copy(), v.copy()))    
+##        print cv_sets
+#        
+#    feats = ['_hi', '_vol', '_adcls']
+#    
+#    #calculation for 1 day in advance
+#    for s in symbols:        
+#        print s
+#        features = df.ix[:-1, [s+feats[0], s+feats[1], s+feats[2]]]
+#        target = df.ix[1:, s+feats[2]]
+#        reg = fit_model(features, target, cv_sets)
+#        # Produce the value for 'max_depth'
+#        print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])   
+#        
         #predict          
 #        print reg.predict()
  
 
         
 if __name__ == "__main__":
-    run()
+#    run()
 
-
-
+#'2010-07-01', '2016-09-21'  
+    dates = pd.date_range('2010-07-01', '2016-09-21')  # one month only
+    feats = ['_hi', '_vol', '_adcls']
+    symbols = ['SPY']
+    df = get_data(symbols, dates)   
+    
+    #preprocess data/ append adj column for next day (shifteed by 1) as additional 
+#    for symbol in symbols:
+#        df_temp = df.ix[:,[symbol + feats[2]]]
+#        df_temp = df_temp.rename(columns={symbol + feats[2]: symbol + 'adl_cls_target'})               
+#        df = df.join(df_temp[1:])            
+    
+    n_folds = 10    
+    test_sz = 0.2
+    train_sz = (1 - test_sz)
+#    train_to_test_ratio = train_sz/test_sz
+    n_lookup = 3
+    
+    #num_elem_train, num_elem_test are affected but the number of days for the 
+    #prediction n_lookup, ie. a dataframe with a 100 days and 10 days lookup 
+    #only have 90 days to be divided between training and testing sets
+    num_elem_train = int(math.floor(df.shape[0] - n_lookup)/(1 + n_folds*(test_sz/train_sz)))
+    num_elem_test = int(math.floor( num_elem_train * (test_sz/train_sz) ))
+    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
+    print 'dfshape - n days lookup:' , df.shape[0] - n_lookup
+    print 'num_elem_train', num_elem_train
+    print 'num_elem_test', num_elem_test
+    
+    cv_sets = list()    
+    s = get_partition(num_elem_train,num_elem_test)
+#    s = get_partition(10, 0.2)
+    for k in range(n_folds):                
+        idxs = next(s)
+        u = idxs[0]
+        v = idxs[1]
+        cv_sets.append((u.copy(), v.copy()))    
+#    print cv_sets
+        
+    feats = ['_hi', '_vol', '_adcls']
+    
+    #calculate feature and target set with n_lookup days in advance
+    for s in symbols:        
+        print s
+        features_train = df.ix[ : -n_lookup, [s+feats[0], s+feats[1], s+feats[2]]]
+        features_test = df.ix[ -n_lookup :, [s+feats[0], s+feats[1], s+feats[2]]]
+        target_train = df.ix[ n_lookup :, s+feats[2]]
+        target_test = df.ix[  : n_lookup, s+feats[2]]
+        reg = fit_model(features_train.values, target_train.values, cv_sets)
+#        # Produce the value for 'max_depth'
+        print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])           
+        predict = reg.predict(features_test)
+        print predict
+#        
+#
 
 
 
