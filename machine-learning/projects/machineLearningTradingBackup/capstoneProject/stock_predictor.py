@@ -42,9 +42,9 @@ def get_data(symbols, dates):
 
     for symbol in symbols:
         df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
-                parse_dates=True, usecols=['Date', 'High', 'Volume', 'Adj Close'], na_values=['nan'])
+                parse_dates=True, usecols=['Date', 'High', 'Adj Close'], na_values=['nan'])
         df_temp = df_temp.rename(columns={'Adj Close': symbol + '_adcls'})
-        df_temp = df_temp.rename(columns={'Volume': symbol + '_vol'})        
+#        df_temp = df_temp.rename(columns={'Volume': symbol + '_vol'})        
         df_temp = df_temp.rename(columns={'High': symbol + '_hi'})        
         df = df.join(df_temp)
         if symbol == 'SPY':  # drop dates SPY did not trade
@@ -105,6 +105,14 @@ def fit_model(X,y, cv_sets):
     return grid.best_estimator_    
     
 
+def plot_data(df, title="Stock prices", xlabel="Date", ylabel="Price"):
+    """Plot stock prices with a custom title and meaningful axis labels."""
+    ax = df.plot(title=title, fontsize=12)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    plt.grid()
+    plt.show()
+
 #def run():         
     #preprocess data/ append adj column for next day (shifteed by 1) as additional 
 #    for symbol in symbols:
@@ -143,6 +151,11 @@ def fit_model(X,y, cv_sets):
         #predict          
 #        print reg.predict()
  
+def is_data_missing( cv_sets, f_train, f_test, t_train, t_test):
+    nfolds = len(cv_sets)
+    for n in nfolds:
+        if features_train.ix[cv_sets[0][0][:]].isnull().values.any():
+            
 
         
 if __name__ == "__main__":
@@ -150,8 +163,9 @@ if __name__ == "__main__":
 
 #'2010-07-01', '2016-09-21'  
     dates = pd.date_range('2010-07-01', '2016-09-21')  # one month only
-    feats = ['_hi', '_vol', '_adcls']
-    symbols = ['SPY']
+#    feats = ['_hi', '_vol', '_adcls']
+    feats = ['_hi', '_adcls']
+    symbols = ['SPY', 'XOM', 'WYNN', 'GM']
     df = get_data(symbols, dates)   
     
     #preprocess data/ append adj column for next day (shifteed by 1) as additional 
@@ -172,7 +186,7 @@ if __name__ == "__main__":
     num_elem_train = int(math.floor(df.shape[0] - n_lookup)/(1 + n_folds*(test_sz/train_sz)))
     num_elem_test = int(math.floor( num_elem_train * (test_sz/train_sz) ))
     print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
-    print 'dfshape - n days lookup:' , df.shape[0] - n_lookup
+    print 'df.shape - n days lookup:' , df.shape[0] - n_lookup
     print 'num_elem_train', num_elem_train
     print 'num_elem_test', num_elem_test
     
@@ -184,24 +198,36 @@ if __name__ == "__main__":
         u = idxs[0]
         v = idxs[1]
         cv_sets.append((u.copy(), v.copy()))    
-#    print cv_sets
-        
-    feats = ['_hi', '_vol', '_adcls']
+#    print cv_sets        
     
     #calculate feature and target set with n_lookup days in advance
     for s in symbols:        
         print s
-        features_train = df.ix[ : -n_lookup, [s+feats[0], s+feats[1], s+feats[2]]]
-        features_test = df.ix[ -n_lookup :, [s+feats[0], s+feats[1], s+feats[2]]]
-        target_train = df.ix[ n_lookup :, s+feats[2]]
-        target_test = df.ix[  : n_lookup, s+feats[2]]
-        reg = fit_model(features_train.values, target_train.values, cv_sets)
-#        # Produce the value for 'max_depth'
-        print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])           
-        predict = reg.predict(features_test)
-        print predict
+        features_train = df.ix [ : -n_lookup, [s+feats[0], s+feats[1]]]
+        target_train = df.ix[ n_lookup :, s+feats[1]]
+        features_test = df.ix[ -n_lookup :, [s+feats[0], s+feats[1]]]        
+        target_test = df.ix[  : n_lookup, s+feats[1]]
 #        
-#
+#        reg = fit_model(features_train.values, target_train.values, cv_sets)
+#        # Produce the value for 'max_depth'
+#        print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])           
+#        predict = reg.predict(features_test)
+#        print predict        
+        try:
+            reg = fit_model(features_train.values, target_train.values, cv_sets)
+            # Produce the value for 'max_depth'
+            print "Parameter 'max_depth' is {} for the optimal model.".format(reg.get_params()['max_depth'])           
+            predict = reg.predict(features_test)
+            print predict
+        except:
+            plot_data(df['GM_hi'])
+            plot_data(df['GM_adcls'])
+            
+           
+#DONT FORGET TO NORMALIZE DATA
+#boston housing uses fit_morel with inputs x_training, y_training but then cv is generated within with
+#testing and training sets | also train_test_split generates x_train and x_test but only 
+# x_train seems to be used
 
 
 
