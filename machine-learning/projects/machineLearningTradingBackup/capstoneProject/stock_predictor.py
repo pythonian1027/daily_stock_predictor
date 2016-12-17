@@ -84,8 +84,10 @@ def performance_metric(y_true, y_predict):
     score = r2_score(y_true, y_predict)
     return score
     
-def fit_model(X,y, cv_sets, model):
-    
+def fit_model(X,y, model, cv_sets):
+
+#    cv_sets = generate_cv_sets(num_elem_train, num_elem_test, n_folds)    
+#    print cv_sets
     if model == 'DTR':
         regressor = DecisionTreeRegressor(random_state = None)
         params = {'max_depth':[2,3, 4, 5, 7, 8, 20], 'min_samples_split' : [2, 8, 16, 32]}
@@ -96,7 +98,7 @@ def fit_model(X,y, cv_sets, model):
         regressor = SVR() 
 #        params = { 'C':[ 10, 3, 0.01, 100, 1e3, 1e4, 1e5],            
 #               'gamma': [0.0001, 0.001, 0.01, 0.1]}  
-        params = { 'C':[1e3],'gamma': [0.0001, 0.1]}                 
+        params = { 'C':[1e3],'gamma': [0.0001, 0.1], 'kernel': ['linear']}                 
         scoring_fnc = make_scorer(performance_metric)               
                
     grid = GridSearchCV(regressor, params, scoring_fnc, cv = cv_sets)    
@@ -113,14 +115,14 @@ def plot_data(df, title="Stock prices", xlabel="Date", ylabel="Price"):
     plt.show()
 
 def data_nan_check( sbl, X, y, csets):
-    nfolds = len(cv_sets)
+    nfolds = len(csets)
     num_miss_blks = 0
-    num_tuple = len(cv_sets[0])
+    num_tuple = len(csets[0])
     for n in range(nfolds):
         for m in range(num_tuple):
-            if X.ix[cv_sets[n][m]].isnull().values.any() :
+            if X.ix[csets[n][m]].isnull().values.any() :
                 num_miss_blks += 1
-            if y.ix[cv_sets[n][m]].isnull().values.any() :
+            if y.ix[csets[n][m]].isnull().values.any() :
                 num_miss_blks += 1            
     #if more than 30% of data is missing, through a message
     if num_miss_blks > int(0.3*nfolds):
@@ -132,27 +134,51 @@ def data_nan_check( sbl, X, y, csets):
         except Exception:
             traceback.print_exc(file=sys.stdout)            
         sys.exit(0)
-            
+
+#train size is the fraction of the dataset dedicated to training
+def get_training_sets(dframe, train_size):
+    train_data_sz = int(dframe.shape[0]*train_size)
+    train_set = dframe.ix[:train_data_sz]
+    test_set = dframe.ix[train_data_sz:]
+    return train_set, test_set
+                    
 def calculate_performance(y_true, y_predict):
     score = r2_score(y_true, y_predict)
     return score                
+
+def generate_cv_sets(numel_train, numel_test, numfolds):
+    cvset = list()
+    s = get_partition(numel_train,numel_test)
+    for _ in range(numfolds):                
+        idxs = next(s)
+        u = idxs[0]
+        v = idxs[1]
+        cvset.append((u.copy(), v.copy()))    
+    return cvset    
+
+def fit_model_inputs(train_size, n_lookup, n_folds, test_sz, train_sz):
+    numel_train = int(math.floor(train_size - n_lookup)/(1. + n_folds*(float(test_sz)/train_sz)))
+    numel_test = int(math.floor( numel_train * (float(test_sz)/train_sz) ))
+    cvsets = generate_cv_sets(numel_train, numel_test, n_folds)                        
+    return numel_train, numel_test, cvsets                        
                         
 if __name__ == "__main__":
 #    run()
 
 #'2010-07-01', '2016-09-21'  
 #'2008-07-01', '2016-09-21'
-    dates = pd.date_range('2010-07-01', '2016-09-21')  # one month only
+    dates = pd.date_range('2015-01-01', '2015-09-21')  # one month only
 #    feats = ['_hi', '_vol', '_adcls']
     feats = ['_hi', '_adcls']
     symbols = ['SPY', 'XOM', 'WYNN']
-    df = get_data(symbols, dates)   
+    n_lookup = 1
+#    n_folds = 10
     
-#   length of training data set to 90%
-#   remaining 10% is for final testing    
-    train_data_sz = int(df.shape[0]*0.9)
-    df_train = df.ix[:train_data_sz]
-    df_test = df.ix[train_data_sz:]
+    df = get_data(symbols, dates)   
+    #   length of training data set to 90%
+    #   remaining 10% is for final testing    
+    df_train, df_test = get_training_sets(df, 0.9)
+
     
     #preprocess data/ append adj column for next day (shifteed by 1) as additional 
 #    for symbol in symbols:
@@ -161,63 +187,89 @@ if __name__ == "__main__":
 #        df = df.join(df_temp[1:])            
     
 #   number of days ahead to be predicted
-    n_lookup = 7
+
     
 #==============================================================================
 # #    num_elem_train and num_elem_test calculated within the train data set
 #==============================================================================
-    n_folds = 10    
     #test_sz is the training test size within the training set to be used in GridSearchCV
     test_sz = 0.2
     train_sz = (1 - test_sz)
+    n_folds = 2
+#    n_lookup = 1
+            
     #num_elem_train, num_elem_test are affected but the number of days for the 
     #prediction n_lookup, ie. a dataframe with a 100 days and 10 days lookup 
-    #only have 90 days to be divided between training and testing sets
-    num_elem_train = int(math.floor(df_train.shape[0] - n_lookup)/(1 + n_folds*(test_sz/train_sz)))
-    num_elem_test = int(math.floor( num_elem_train * (test_sz/train_sz) ))
+    #only have 90 days to be divided between training and testing sets            
+#    num_elem_train = int(math.floor(df_train.shape[0] - n_lookup)/(1 + n_folds*(test_sz/train_sz)))
+#    num_elem_test = int(math.floor( num_elem_train * (test_sz/train_sz) ))
+#    cv_sets = generate_cv_sets(num_elem_train, num_elem_test, n_folds)
+            
+#==============================================================================
+    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)
+#     
     print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
     print 'df.shape train - n days lookup:' , df_train.shape[0] - n_lookup
     print 'num_elem_train', num_elem_train
-    print 'num_elem_test', num_elem_test
-    
-    cv_sets = list()    
-    s = get_partition(num_elem_train,num_elem_test)
-    for _ in range(n_folds):                
-        idxs = next(s)
-        u = idxs[0]
-        v = idxs[1]
-        cv_sets.append((u.copy(), v.copy()))    
-    
+    print 'num_elem_test', num_elem_test    
+     
     #calculate feature and target set with n_lookup days in advance
     for s in symbols:        
-        #X_train and y_train are Dataframes of the same size, shifted by n_lookup
-        #training features are trained with targets n_lookup days in the future         
-        X_train = df.ix [ : -n_lookup, [s+feats[0], s+feats[1]]]
-        y_train = df.ix[ n_lookup :, s+feats[1]]
-        
+         #X_train and y_train are Dataframes of the same size, shifted by n_lookup
+         #training features are trained with targets n_lookup days in the future         
+        X_train = df_train.ix [ : -n_lookup, [s+feats[0], s+feats[1]]]
+        y_train = df_train.ix[ n_lookup :, s+feats[1]]    
         #if data contains more than 30% of cv_sets with "nan's" then through a message
         data_nan_check(s, X_train, y_train, cv_sets )
-
-#        try:
-        models = [ 'DTR', 'SVR']
+ 
+ #      try:
+        models = [ 'DTR']
         for m in models:
-            reg = fit_model(X_train.values, y_train.values, cv_sets, m) #takes in training data
-            # Produce the value for 'max_depth'
-            print "Params for model {} are {}".format(m, reg.get_params())           
+            print type(X_train), type(y_train)
+            reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
+             # Produce the value for 'max_depth'
+            print "Params for SYMBOL {}, model {} are {}".format(s, m, reg.get_params())           
             y_predict = reg.predict(df_test.ix[: -n_lookup, [s+feats[0], s+feats[1]] ])
             y_true = df_test.ix[ n_lookup :, s+feats[1] ]
             print 'score {} : '.format(calculate_performance(y_predict, y_true))
             t = np.arange(0, y_true.shape[0])
-#            plt.plot(t, y_predict, 'r', t, y_true, 'b')
-            
-            result = 100*np.mean((y_true - y_predict)/y_true)
+ #            plt.plot(t, y_predict, 'r', t, y_true, 'b')
+             
+            #take values to convert dataframe to np arrays to be consistent with y_predict
+            result = 100*np.mean((y_true.values - y_predict)/y_true.values)
             print 'avg % within actual value : {}'.format(result)
-        print '\n'            
+    print '\n'            
+#==============================================================================
 
 
 #==============================================================================
 # #Python ML Blueprints
-s
+# Need to test for Kernel Linear as in the tutorial
+    sp = get_data_all('WYNN', dates)
+    sp_len = sp.shape[0]
+    train_sz = int(0.8*sp_len)
+    test_sz = sp_len - train_sz
+    for i in range(1, 21, 1):
+        sp.loc[:,'Close Minus ' + str(i)] = sp['Adj Close'].shift(i)
+    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'Adj Close']].iloc[20:,]
+    sp20 = sp20.iloc[:,::-1]    
+
+    df_train, df_test = get_training_sets(sp20, 0.9)    
+    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)    
+   
+    X_train = df_train.ix[:-n_lookup]
+    y_train = df_train.ix[n_lookup:, 'Adj Close' ]   
+    print type(X_train), type(y_train)
+    reg  = fit_model(X_train, y_train, 'SVR', cv_sets)
+    print "Params for modelare {}".format(reg.get_params())           
+    y_predict = reg.predict(df_test.ix[: -n_lookup])
+    y_true = df_test.ix[ n_lookup :, ['Adj Close'] ]
+    print 'score {} : '.format(calculate_performance(y_predict, y_true))
+    result = 100*np.mean((y_true.values - y_predict)/y_true.values)
+    print 'avg % within actual value : {}'.format(result)    
+
+
+
             
 #==============================================================================
 #        except:
