@@ -33,6 +33,14 @@ def symbol_to_path(symbol, base_dir=cwd + '/data/'):
     """Return CSV file path given ticker symbol."""    
     return os.path.join(base_dir, "{}.csv".format(str(symbol)))
 
+def get_data_all(symbol, dates):
+    """Read stock data (adjusted close) for given symbols from CSV files."""
+    df = pd.DataFrame(index=dates)
+    df = pd.read_csv(symbol_to_path(symbol), index_col='Date',
+            parse_dates=True, na_values=['nan'])        
+    return df
+
+
 def get_data(symbols, dates):
     """Read stock data (adjusted close) for given symbols from CSV files."""
     df = pd.DataFrame(index=dates)
@@ -80,7 +88,7 @@ def fit_model(X,y, cv_sets, model):
     
     if model == 'DTR':
         regressor = DecisionTreeRegressor(random_state = None)
-        params = {'max_depth':[2,3, 4, 7, 9, 11, 15,  20, 5, 57, 93]}
+        params = {'max_depth':[2,3, 4, 5, 7, 8, 20], 'min_samples_split' : [2, 8, 16, 32]}
         scoring_fnc = make_scorer(performance_metric)
         #    grid = GridSearchCV(regressor, params, scoring_fnc, cv = get_partition(100, 0.3))
         
@@ -88,8 +96,7 @@ def fit_model(X,y, cv_sets, model):
         regressor = SVR() 
 #        params = { 'C':[ 10, 3, 0.01, 100, 1e3, 1e4, 1e5],            
 #               'gamma': [0.0001, 0.001, 0.01, 0.1]}  
-        params = { 'C':[ 10, 3, 1e3],'gamma': [0.0001, 0.1], 
-                  'kernel': ['linear', 'poly', 'rbf', 'sigmoid']}                 
+        params = { 'C':[1e3],'gamma': [0.0001, 0.1]}                 
         scoring_fnc = make_scorer(performance_metric)               
                
     grid = GridSearchCV(regressor, params, scoring_fnc, cv = cv_sets)    
@@ -134,7 +141,8 @@ if __name__ == "__main__":
 #    run()
 
 #'2010-07-01', '2016-09-21'  
-    dates = pd.date_range('2008-07-01', '2016-09-21')  # one month only
+#'2008-07-01', '2016-09-21'
+    dates = pd.date_range('2010-07-01', '2016-09-21')  # one month only
 #    feats = ['_hi', '_vol', '_adcls']
     feats = ['_hi', '_adcls']
     symbols = ['SPY', 'XOM', 'WYNN']
@@ -153,12 +161,12 @@ if __name__ == "__main__":
 #        df = df.join(df_temp[1:])            
     
 #   number of days ahead to be predicted
-    n_lookup = 1
+    n_lookup = 7
     
 #==============================================================================
 # #    num_elem_train and num_elem_test calculated within the train data set
 #==============================================================================
-    n_folds = 4    
+    n_folds = 10    
     #test_sz is the training test size within the training set to be used in GridSearchCV
     test_sz = 0.2
     train_sz = (1 - test_sz)
@@ -191,7 +199,7 @@ if __name__ == "__main__":
         data_nan_check(s, X_train, y_train, cv_sets )
 
 #        try:
-        models = ['SVR']
+        models = [ 'DTR', 'SVR']
         for m in models:
             reg = fit_model(X_train.values, y_train.values, cv_sets, m) #takes in training data
             # Produce the value for 'max_depth'
@@ -199,8 +207,19 @@ if __name__ == "__main__":
             y_predict = reg.predict(df_test.ix[: -n_lookup, [s+feats[0], s+feats[1]] ])
             y_true = df_test.ix[ n_lookup :, s+feats[1] ]
             print 'score {} : '.format(calculate_performance(y_predict, y_true))
-#                plt.plot(y_predict)
+            t = np.arange(0, y_true.shape[0])
+#            plt.plot(t, y_predict, 'r', t, y_true, 'b')
             
+            result = 100*np.mean((y_true - y_predict)/y_true)
+            print 'avg % within actual value : {}'.format(result)
+        print '\n'            
+
+
+#==============================================================================
+# #Python ML Blueprints
+s
+            
+#==============================================================================
 #        except:
 #            print 'error'
             
