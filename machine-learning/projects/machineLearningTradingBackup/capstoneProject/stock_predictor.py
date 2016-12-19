@@ -34,13 +34,30 @@ def symbol_to_path(symbol, base_dir=cwd + '/data/'):
     """Return CSV file path given ticker symbol."""    
     return os.path.join(base_dir, "{}.csv".format(str(symbol)))
 
-def get_data_all(symbol, dates):
+#def get_data_all(symbol, dates):
+#    """Read stock data (adjusted close) for given symbols from CSV files."""
+#    df = pd.DataFrame(index=dates)
+#    df = pd.read_csv(symbol_to_path(symbol), index_col='Date',
+#            parse_dates=True, na_values=['nan'])   
+##    if symbol == 'SPY':  # drop dates SPY did not trade
+##    df = df.dropna(how='any')            
+#    return df
+
+def get_adj_close_data(symbols, dates):
     """Read stock data (adjusted close) for given symbols from CSV files."""
     df = pd.DataFrame(index=dates)
-    df = pd.read_csv(symbol_to_path(symbol), index_col='Date',
-            parse_dates=True, na_values=['nan'])        
-    return df
+    if 'SPY' not in symbols:  # add SPY for reference, if absent
+        symbols.insert(0, 'SPY')
 
+    for symbol in symbols:
+        df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
+                parse_dates=True, usecols=['Date', 'Adj Close'], na_values=['nan'])
+        df_temp = df_temp.rename(columns={'Adj Close': symbol})
+        df = df.join(df_temp)
+        if symbol == 'SPY':  # drop dates SPY did not trade
+            df = df.dropna(subset=["SPY"])
+
+    return df
 
 def get_data(symbols, dates):
     """Read stock data (adjusted close) for given symbols from CSV files."""
@@ -103,7 +120,7 @@ def fit_model(X,y, model, cv_sets):
         regressor = SVR() 
 #        params = { 'C':[ 10, 3, 0.01, 100, 1e3, 1e4, 1e5],            
 #               'gamma': [0.0001, 0.001, 0.01, 0.1]}  
-        params = { 'C':[1e3],'gamma': [0.0001, 0.1], 'kernel': ['rbf']}                 
+        params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['rbf', 'linear', 'poly', 'sigmoid']}                 
 #        scoring_fnc = make_scorer(performance_metric_mse)               
         
     scoring_fnc = make_scorer(performance_metric_mse, greater_is_better = False)                              
@@ -176,14 +193,16 @@ if __name__ == "__main__":
     dates = pd.date_range('2010-01-01', '2015-09-21')  # one month only
 #    feats = ['_hi', '_vol', '_adcls']
     feats = ['_hi', '_adcls']
-    symbols = ['SPY', 'XOM', 'WYNN']    
+#    symbols = ['SPY', 'XOM', 'WYNN']    
+    symbols = []
     test_sz = 0.2
     train_sz = (1 - test_sz)
     n_folds = 5
-    n_lookup = 7
+    n_lookup = 3
 
     
     df = get_data(symbols, dates)   
+    print 'df.shape[0]: {}, dates: {}'.format(df.shape[0], dates)    
     #   length of training data set to 90%
     #   remaining 10% is for final testing    
     df_train, df_test = get_training_sets(df, 0.9)
@@ -215,10 +234,12 @@ if __name__ == "__main__":
     num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)
 #     
     print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
-    print 'df.shape train - n days lookup:' , df_train.shape[0] - n_lookup
+    print 'df.shape[0]: {}, df_train: {},  n days lookup {}:'.format(df.shape[0], df_train.shape[0] ,n_lookup)
     print 'num_elem_train', num_elem_train
     print 'num_elem_test', num_elem_test    
      
+    print 'df: {}, df_train: {},\ndf_test:  {},\ndf_test.shape[0]: {}\n\n'\
+    .format(df.index[0], df_train.index[0], df_test.index[0], df_test.shape[0])     
     #calculate feature and target set with n_lookup days in advance
     for s in symbols:        
          #X_train and y_train are Dataframes of the same size, shifted by n_lookup
@@ -229,7 +250,7 @@ if __name__ == "__main__":
         data_nan_check(s, X_train, y_train, cv_sets )
  
  #      try:
-        models = [ 'DTR', 'SVR']
+        models = [ 'SVR']
         for m in models:
             print type(X_train), type(y_train)
             reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
@@ -237,13 +258,17 @@ if __name__ == "__main__":
             print "Params for SYMBOL {}, model {} are {}".format(s, m, reg.get_params())           
             y_predict = reg.predict(df_test.ix[: -n_lookup, [s+feats[0], s+feats[1]] ])
             y_true = df_test.ix[ n_lookup :, s+feats[1] ]
-            print 'score {} : '.format(performance_metric_mse(y_predict, y_true))
-            t = np.arange(0, y_true.shape[0])
+            print 'MSE 1{} : '.format(performance_metric_mse(y_predict, y_true))
+#            t = np.arange(0, y_true.shape[0])
  #            plt.plot(t, y_predict, 'r', t, y_true, 'b')
              
             #take values to convert dataframe to np arrays to be consistent with y_predict
             result = 100*np.mean((y_true.values - y_predict)/y_true.values)
             print 'avg % within actual value : {}'.format(result)
+            t = np.arange(0, y_true.shape[0])
+            plt.plot(t, y_predict, 'r', t, y_true, 'b')
+            plt.show()
+
     print '\n'            
 #==============================================================================
 
@@ -251,30 +276,49 @@ if __name__ == "__main__":
 #==============================================================================
 # #Python ML Blueprints
 # Need to test for Kernel Linear as in the tutorial
-    sp = get_data_all('WYNN', dates)
+    symbol = 'SPY'
+    sp = get_adj_close_data([symbol], dates)
     sp_len = sp.shape[0]
-    train_sz = int(0.8*sp_len)
-    test_sz = sp_len - train_sz
-    for i in range(1, 21, 1):
-        sp.loc[:,'Close Minus ' + str(i)] = sp['Adj Close'].shift(i)
-    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'Adj Close']].iloc[20:,]
-    sp20 = sp20.iloc[:,::-1]    
-
+    nprior = 5
+    print 'sp.shape[0]: {}, dates: {}'.format(sp.shape[0], dates)
+#   number of prior closing days to predict next closing day: nprior
+    for i in range(1, nprior + 1, 1):
+        sp.loc[:,'Close Minus ' + str(i)] = sp[symbol].shift(i)
+    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == symbol]].iloc[nprior:,]
+    sp20 = sp20.iloc[:,::-1] 
+    
+#    this train test sets are for fit model (ing) only, the final test is done with 
     df_train, df_test = get_training_sets(sp20, 0.9)    
     num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)    
+    
+#    train_sz = int(0.8*sp_len)
+#    test_sz = sp_len - train_sz
+    test_sz = 0.2
+    train_sz = (1 - test_sz)    
+
+#    this train test sets are for fit model (ing) only, the final test is done with 
+#    df_train, df_test = get_training_sets(sp20, 0.9)    
+#    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)    
    
     X_train = df_train.ix[:-n_lookup]
-    y_train = df_train.ix[n_lookup:, 'Adj Close' ]   
-    print type(X_train), type(y_train)
+    y_train = df_train.ix[n_lookup:, symbol ]       
     reg  = fit_model(X_train, y_train, 'SVR', cv_sets)
     print "Params for modelare {}".format(reg.get_params())           
     y_predict = reg.predict(df_test.ix[: -n_lookup])
-    y_true = df_test.ix[ n_lookup :, ['Adj Close'] ]
-    print 'score {} : '.format(performance_metric_mse(y_predict, y_true))
+    y_true = df_test.ix[ n_lookup :, [symbol] ]
+    print 'MSE 2 {} : '.format(performance_metric_mse(y_predict, y_true))
     result = 100*np.mean((y_true.values - y_predict)/y_true.values)
-    print 'avg % within actual value : {}'.format(result)    
-
-
+    print 'avg % within actual value : {}'.format(result)   
+    t = np.arange(0, y_true.shape[0])
+    plt.plot(t, y_predict, 'r', t, y_true, 'b')
+    plt.show()
+    
+    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
+    print 'sp20.shape[0]: {}, df_train: {},  n days lookup {}:'.format(sp20.shape[0], df_train.shape[0] ,n_lookup)
+    print 'num_elem_train', num_elem_train
+    print 'num_elem_test', num_elem_test        
+    print 'sp: {}, df_train: {},\ndf_test:  {},\ndf_test.shape[0]: {}\n\n'\
+    .format(sp.index[0], df_train.index[0], df_test.index[0], df_test.shape[0])
 
             
 #==============================================================================
