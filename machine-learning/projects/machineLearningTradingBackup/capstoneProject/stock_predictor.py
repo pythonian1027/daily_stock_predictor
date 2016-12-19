@@ -10,7 +10,8 @@ Created on Sun Dec 11 19:12:20 2016
 from sklearn.metrics import r2_score, make_scorer, fbeta_score
 from sklearn.grid_search import GridSearchCV
 from sklearn.tree import  DecisionTreeRegressor
-
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
 
 from sklearn.svm import SVR
 import numpy as np
@@ -79,10 +80,13 @@ def get_partition(n_elem_train, n_elem_test):
         idxs_test += n_elem_test                        
 #    return idxs_train, idxs_test
     
-def performance_metric(y_true, y_predict):
-    from sklearn.metrics import r2_score
+def performance_metric_r2(y_true, y_predict):    
     score = r2_score(y_true, y_predict)
     return score
+    
+def performance_metric_mse(y_true, y_predict):
+    score = mean_squared_error(y_true, y_predict)
+    return score    
     
 def fit_model(X,y, model, cv_sets):
 
@@ -91,16 +95,18 @@ def fit_model(X,y, model, cv_sets):
     if model == 'DTR':
         regressor = DecisionTreeRegressor(random_state = None)
         params = {'max_depth':[2,3, 4, 5, 7, 8, 20], 'min_samples_split' : [2, 8, 16, 32]}
-        scoring_fnc = make_scorer(performance_metric)
+#        scoring_fnc = make_scorer(performance_metric_r2)
+#        scoring_fnc = make_scorer(performance_metric_mse)
         #    grid = GridSearchCV(regressor, params, scoring_fnc, cv = get_partition(100, 0.3))
         
     elif model == 'SVR':
         regressor = SVR() 
 #        params = { 'C':[ 10, 3, 0.01, 100, 1e3, 1e4, 1e5],            
 #               'gamma': [0.0001, 0.001, 0.01, 0.1]}  
-        params = { 'C':[1e3],'gamma': [0.0001, 0.1], 'kernel': ['linear']}                 
-        scoring_fnc = make_scorer(performance_metric)               
-               
+        params = { 'C':[1e3],'gamma': [0.0001, 0.1], 'kernel': ['rbf']}                 
+#        scoring_fnc = make_scorer(performance_metric_mse)               
+        
+    scoring_fnc = make_scorer(performance_metric_mse, greater_is_better = False)                              
     grid = GridSearchCV(regressor, params, scoring_fnc, cv = cv_sets)    
     grid = grid.fit(X,y)        
     return grid.best_estimator_    
@@ -142,9 +148,9 @@ def get_training_sets(dframe, train_size):
     test_set = dframe.ix[train_data_sz:]
     return train_set, test_set
                     
-def calculate_performance(y_true, y_predict):
-    score = r2_score(y_true, y_predict)
-    return score                
+#def calculate_performance(y_true, y_predict):
+#    score = r2_score(y_true, y_predict)
+#    return score                
 
 def generate_cv_sets(numel_train, numel_test, numfolds):
     cvset = list()
@@ -167,12 +173,15 @@ if __name__ == "__main__":
 
 #'2010-07-01', '2016-09-21'  
 #'2008-07-01', '2016-09-21'
-    dates = pd.date_range('2015-01-01', '2015-09-21')  # one month only
+    dates = pd.date_range('2010-01-01', '2015-09-21')  # one month only
 #    feats = ['_hi', '_vol', '_adcls']
     feats = ['_hi', '_adcls']
-    symbols = ['SPY', 'XOM', 'WYNN']
-    n_lookup = 1
-#    n_folds = 10
+    symbols = ['SPY', 'XOM', 'WYNN']    
+    test_sz = 0.2
+    train_sz = (1 - test_sz)
+    n_folds = 5
+    n_lookup = 7
+
     
     df = get_data(symbols, dates)   
     #   length of training data set to 90%
@@ -193,10 +202,7 @@ if __name__ == "__main__":
 # #    num_elem_train and num_elem_test calculated within the train data set
 #==============================================================================
     #test_sz is the training test size within the training set to be used in GridSearchCV
-    test_sz = 0.2
-    train_sz = (1 - test_sz)
-    n_folds = 2
-#    n_lookup = 1
+
             
     #num_elem_train, num_elem_test are affected but the number of days for the 
     #prediction n_lookup, ie. a dataframe with a 100 days and 10 days lookup 
@@ -223,7 +229,7 @@ if __name__ == "__main__":
         data_nan_check(s, X_train, y_train, cv_sets )
  
  #      try:
-        models = [ 'DTR']
+        models = [ 'DTR', 'SVR']
         for m in models:
             print type(X_train), type(y_train)
             reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
@@ -231,7 +237,7 @@ if __name__ == "__main__":
             print "Params for SYMBOL {}, model {} are {}".format(s, m, reg.get_params())           
             y_predict = reg.predict(df_test.ix[: -n_lookup, [s+feats[0], s+feats[1]] ])
             y_true = df_test.ix[ n_lookup :, s+feats[1] ]
-            print 'score {} : '.format(calculate_performance(y_predict, y_true))
+            print 'score {} : '.format(performance_metric_mse(y_predict, y_true))
             t = np.arange(0, y_true.shape[0])
  #            plt.plot(t, y_predict, 'r', t, y_true, 'b')
              
@@ -264,7 +270,7 @@ if __name__ == "__main__":
     print "Params for modelare {}".format(reg.get_params())           
     y_predict = reg.predict(df_test.ix[: -n_lookup])
     y_true = df_test.ix[ n_lookup :, ['Adj Close'] ]
-    print 'score {} : '.format(calculate_performance(y_predict, y_true))
+    print 'score {} : '.format(performance_metric_mse(y_predict, y_true))
     result = 100*np.mean((y_true.values - y_predict)/y_true.values)
     print 'avg % within actual value : {}'.format(result)    
 
@@ -285,7 +291,7 @@ if __name__ == "__main__":
 #5 Learning curves is used in Boston housing with Decision Tree Regressor, can curves be used with others?
 #6 Does data need to be balances? Read ipynb student_intervention DTrees weaknesses
 #7 add kernel to gridsearch for SVR
-           
+#Hos is accuracy measure, why %within differs so much from r_2score, what does it means?           
 #References to visit           
 #www.svms.org/finance           
 
@@ -348,3 +354,43 @@ if __name__ == "__main__":
 #        X_test = df.ix[cv[1]]
 #        print ([cv[0]], [cv[1]])
 #    
+
+
+#dates = pd.date_range('2010-01-01', '2015-09-21')  # one month only
+#feats = ['_hi', '_adcls']
+#symbols = ['SPY', 'XOM', 'WYNN']    
+#test_sz = 0.2
+#train_sz = (1 - test_sz)
+#n_folds = 5
+#n_lookup = 1
+#
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for SYMBOL SPY, model DTR are {'presort': False, 'splitter': 'best', 'max_leaf_nodes': None, 'min_samples_leaf': 1, 'min_samples_split': 8, 'min_weight_fraction_leaf': 0.0, 'criterion': 'mse', 'random_state': None, 'max_features': None, 'max_depth': 20}
+#score 0.805726509474 : 
+#avg % within actual value : 0.271628894725
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for SYMBOL SPY, model SVR are {'kernel': 'linear', 'C': 1000.0, 'verbose': False, 'degree': 3, 'epsilon': 0.1, 'shrinking': True, 'max_iter': -1, 'tol': 0.001, 'cache_size': 200, 'coef0': 0.0, 'gamma': 0.0001}
+#score -1.30860213337 : 
+#avg % within actual value : -4.0299941938
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for SYMBOL XOM, model DTR are {'presort': False, 'splitter': 'best', 'max_leaf_nodes': None, 'min_samples_leaf': 1, 'min_samples_split': 2, 'min_weight_fraction_leaf': 0.0, 'criterion': 'mse', 'random_state': None, 'max_features': None, 'max_depth': 5}
+#score 0.930081105088 : 
+#avg % within actual value : -0.0314422417914
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for SYMBOL XOM, model SVR are {'kernel': 'linear', 'C': 1000.0, 'verbose': False, 'degree': 3, 'epsilon': 0.1, 'shrinking': True, 'max_iter': -1, 'tol': 0.001, 'cache_size': 200, 'coef0': 0.0, 'gamma': 0.0001}
+#score 0.832282233694 : 
+#avg % within actual value : -1.78060880421
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for SYMBOL WYNN, model DTR are {'presort': False, 'splitter': 'best', 'max_leaf_nodes': None, 'min_samples_leaf': 1, 'min_samples_split': 2, 'min_weight_fraction_leaf': 0.0, 'criterion': 'mse', 'random_state': None, 'max_features': None, 'max_depth': 8}
+#score 0.947043354266 : 
+#avg % within actual value : -0.438871343241
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for SYMBOL WYNN, model SVR are {'kernel': 'linear', 'C': 1000.0, 'verbose': False, 'degree': 3, 'epsilon': 0.1, 'shrinking': True, 'max_iter': -1, 'tol': 0.001, 'cache_size': 200, 'coef0': 0.0, 'gamma': 0.0001}
+#score 0.918404314274 : 
+#avg % within actual value : 3.98401839843
+#
+#
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for modelare {'kernel': 'linear', 'C': 1000.0, 'verbose': False, 'degree': 3, 'epsilon': 0.1, 'shrinking': True, 'max_iter': -1, 'tol': 0.001, 'cache_size': 200, 'coef0': 0.0, 'gamma': 0.0001}
+#score 0.0787410382611 : 
+#avg % within actual value : -0.229713402256
