@@ -120,7 +120,7 @@ def fit_model(X,y, model, cv_sets):
         regressor = SVR() 
 #        params = { 'C':[ 10, 3, 0.01, 100, 1e3, 1e4, 1e5],            
 #               'gamma': [0.0001, 0.001, 0.01, 0.1]}  
-        params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['rbf', 'linear', 'poly', 'sigmoid']}                 
+        params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['rbf']}                 
 #        scoring_fnc = make_scorer(performance_metric_mse)               
         
     scoring_fnc = make_scorer(performance_metric_mse, greater_is_better = False)                              
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         data_nan_check(s, X_train, y_train, cv_sets )
  
  #      try:
-        models = [ 'SVR']
+        models = [ 'DTR']
         for m in models:
             print type(X_train), type(y_train)
             reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     symbol = 'SPY'
     sp = get_adj_close_data([symbol], dates)
     sp_len = sp.shape[0]
-    nprior = 5
+    nprior = 3
     print 'sp.shape[0]: {}, dates: {}'.format(sp.shape[0], dates)
 #   number of prior closing days to predict next closing day: nprior
     for i in range(1, nprior + 1, 1):
