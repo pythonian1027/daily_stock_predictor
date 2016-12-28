@@ -143,7 +143,7 @@ if __name__ == "__main__":
        
 
                 
-    num_symbols = 200
+    num_symbols = 250
     delta_quotes = delta_quotes[:, :num_symbols]
     symbols = symbols[:num_symbols]
     delta_quotes = delta_quotes.T
@@ -153,6 +153,8 @@ if __name__ == "__main__":
 
     
     # Build a graph model from the correlations
+    #GraphLassoCV produces a sparse inverse convariance matrix (fit model takes 
+    # an nd-array w/ shape (n_samples, n_feautes))
     edge_model = covariance.GraphLassoCV()
     
     # Standardize the data 
