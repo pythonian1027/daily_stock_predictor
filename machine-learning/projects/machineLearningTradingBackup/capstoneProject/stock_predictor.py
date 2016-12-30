@@ -10,8 +10,9 @@ Created on Sun Dec 11 19:12:20 2016
 from sklearn.metrics import r2_score, make_scorer, fbeta_score
 from sklearn.grid_search import GridSearchCV
 from sklearn.tree import  DecisionTreeRegressor
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, explained_variance_score
 from sklearn.metrics import r2_score
+from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 
 from sklearn.svm import SVR
 import numpy as np
@@ -83,6 +84,24 @@ def get_data(symbols, dates):
 #    ax.set_ylabel(ylabel)
 #    plt.show()
 
+def plot_feature_importances(feature_importances, title, feature_names):
+    # Normalize the importance values 
+    feature_importances = 100.0 * (feature_importances / max(feature_importances))
+
+    # Sort the values and flip them
+    index_sorted = np.flipud(np.argsort(feature_importances))
+
+    # Arrange the X ticks
+    pos = np.arange(index_sorted.shape[0]) + 0.5
+
+    # Plot the bar graph
+    plt.figure()
+    plt.bar(pos, feature_importances[index_sorted], align='center')
+    plt.xticks(pos, feature_names[index_sorted])
+    plt.ylabel('Relative Importance')
+    plt.title(title)
+    plt.show()
+
 def rsquare_performance(real_data, pred_data):        
     return r2_score(real_data, pred_data)
     
@@ -122,6 +141,10 @@ def fit_model(X,y, model, cv_sets):
 #               'gamma': [0.0001, 0.001, 0.01, 0.1]}  
         params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['rbf']}                 
 #        scoring_fnc = make_scorer(performance_metric_mse)               
+        
+    elif model == 'AdaBoost':
+        regressor = AdaBoostRegressor(SVR(), n_estimators = 2, random_state = None) 
+        params = {}
         
     scoring_fnc = make_scorer(performance_metric_mse, greater_is_better = False)                              
     grid = GridSearchCV(regressor, params, scoring_fnc, cv = cv_sets)    
@@ -190,7 +213,7 @@ if __name__ == "__main__":
 
 #'2010-07-01', '2016-09-21'  
 #'2008-07-01', '2016-09-21'
-    dates = pd.date_range('2010-01-01', '2015-09-21')  # one month only
+    dates = pd.date_range('2013-03-01', '2015-09-21')  # one month only
 #    feats = ['_hi', '_vol', '_adcls']
     feats = ['_hi', '_adcls']
 #    symbols = ['SPY', 'XOM', 'WYNN']    
@@ -250,7 +273,7 @@ if __name__ == "__main__":
         data_nan_check(s, X_train, y_train, cv_sets )
  
  #      try:
-        models = [ 'DTR']
+        models = [ 'DTR', 'AdaBoost']
         for m in models:
             print type(X_train), type(y_train)
             reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
@@ -258,7 +281,7 @@ if __name__ == "__main__":
             print "Params for SYMBOL {}, model {} are {}".format(s, m, reg.get_params())           
             y_predict = reg.predict(df_test.ix[: -n_lookup, [s+feats[0], s+feats[1]] ])
             y_true = df_test.ix[ n_lookup :, s+feats[1] ]
-            print 'MSE 1{} : '.format(performance_metric_mse(y_predict, y_true))
+            print 'MSE 1: {} : '.format(performance_metric_mse(y_predict, y_true))
 #            t = np.arange(0, y_true.shape[0])
  #            plt.plot(t, y_predict, 'r', t, y_true, 'b')
              
@@ -268,62 +291,71 @@ if __name__ == "__main__":
             t = np.arange(0, y_true.shape[0])
             plt.plot(t, y_predict, 'r', t, y_true, 'b')
             plt.show()
+            mse = mean_squared_error(y_true, y_predict)
+            evs = explained_variance_score(y_true, y_predict)
+            
+            print "\n#### AdaBoost performance ####"
+            print "Mean squared error =", round(mse, 2)
+            print "Explained variance score =", round(evs, 2)
+            
+            # Plot relative feature importances 
+#            plot_feature_importances(reg.feature_importances_, 
+#            m, np.array(['High', 'Adj Close']))
+            
 
     print '\n'            
 #==============================================================================
 
 
 #==============================================================================
-# #Python ML Blueprints
-# Need to test for Kernel Linear as in the tutorial
-    symbol = 'SPY'
-    sp = get_adj_close_data([symbol], dates)
-    sp_len = sp.shape[0]
-    nprior = 3
-    print 'sp.shape[0]: {}, dates: {}'.format(sp.shape[0], dates)
-#   number of prior closing days to predict next closing day: nprior
-    for i in range(1, nprior + 1, 1):
-        sp.loc[:,'Close Minus ' + str(i)] = sp[symbol].shift(i)
-    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == symbol]].iloc[nprior:,]
-    sp20 = sp20.iloc[:,::-1] 
-    
-#    this train test sets are for fit model (ing) only, the final test is done with 
-    df_train, df_test = get_training_sets(sp20, 0.9)    
-    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)    
-    
-#    train_sz = int(0.8*sp_len)
-#    test_sz = sp_len - train_sz
-    test_sz = 0.2
-    train_sz = (1 - test_sz)    
-
-#    this train test sets are for fit model (ing) only, the final test is done with 
+## #Python ML Blueprints
+## Need to test for Kernel Linear as in the tutorial
+#    symbol = 'SPY'
+#    sp = get_adj_close_data([symbol], dates)
+#    sp_len = sp.shape[0]
+#    nprior = 3
+#    print 'sp.shape[0]: {}, dates: {}'.format(sp.shape[0], dates)
+##   number of prior closing days to predict next closing day: nprior
+#    for i in range(1, nprior + 1, 1):
+#        sp.loc[:,'Close Minus ' + str(i)] = sp[symbol].shift(i)
+#    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == symbol]].iloc[nprior:,]
+#    sp20 = sp20.iloc[:,::-1] 
+#    
+##    this train test sets are for fit model (ing) only, the final test is done with 
 #    df_train, df_test = get_training_sets(sp20, 0.9)    
 #    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)    
-   
-    X_train = df_train.ix[:-n_lookup]
-    y_train = df_train.ix[n_lookup:, symbol ]       
-    reg  = fit_model(X_train, y_train, 'SVR', cv_sets)
-    print "Params for modelare {}".format(reg.get_params())           
-    y_predict = reg.predict(df_test.ix[: -n_lookup])
-    y_true = df_test.ix[ n_lookup :, [symbol] ]
-    print 'MSE 2 {} : '.format(performance_metric_mse(y_predict, y_true))
-    result = 100*np.mean((y_true.values - y_predict)/y_true.values)
-    print 'avg % within actual value : {}'.format(result)   
-    t = np.arange(0, y_true.shape[0])
-    plt.plot(t, y_predict, 'r', t, y_true, 'b')
-    plt.show()
-    
-    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
-    print 'sp20.shape[0]: {}, df_train: {},  n days lookup {}:'.format(sp20.shape[0], df_train.shape[0] ,n_lookup)
-    print 'num_elem_train', num_elem_train
-    print 'num_elem_test', num_elem_test        
-    print 'sp: {}, df_train: {},\ndf_test:  {},\ndf_test.shape[0]: {}\n\n'\
-    .format(sp.index[0], df_train.index[0], df_test.index[0], df_test.shape[0])
-
-            
+#    
+###    train_sz = int(0.8*sp_len)
+###    test_sz = sp_len - train_sz
+#    test_sz = 0.2
+#    train_sz = (1 - test_sz)    
+#
+###    this train test sets are for fit model (ing) only, the final test is done with 
+###    df_train, df_test = get_training_sets(sp20, 0.9)    
+###    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)    
+#   
+#    X_train = df_train.ix[:-n_lookup]
+#    y_train = df_train.ix[n_lookup:, symbol ]       
+#    reg  = fit_model(X_train, y_train, 'SVR', cv_sets)
+#    print "Params for model are: {}".format(reg.get_params())           
+#    y_predict = reg.predict(df_test.ix[: -n_lookup])
+#    y_true = df_test.ix[ n_lookup :, [symbol] ]
+#    print 'MSE 2 {} : '.format(performance_metric_mse(y_predict, y_true))
+#    result = 100*np.mean((y_true.values - y_predict)/y_true.values)
+#    print 'avg % within actual value : {}'.format(result)   
+#    t = np.arange(0, y_true.shape[0])
+#    plt.plot(t, y_predict, 'r', t, y_true, 'b')
+#    plt.show()
+#    
+#    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
+#    print 'sp20.shape[0]: {}, df_train: {},  n days lookup {}:'.format(sp20.shape[0], df_train.shape[0] ,n_lookup)
+#    print 'num_elem_train', num_elem_train
+#    print 'num_elem_test', num_elem_test        
+#    print 'sp: {}, df_train: {},\ndf_test:  {},\ndf_test.shape[0]: {}\n\n'\
+#    .format(sp.index[0], df_train.index[0], df_test.index[0], df_test.shape[0])
+#
+#            
 #==============================================================================
-#        except:
-#            print 'error'
             
            
 #1 DONT FORGET TO NORMALIZE DATA

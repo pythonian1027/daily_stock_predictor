@@ -32,7 +32,7 @@ def get_data(symbols, dates):
     if 'SPY' not in symbols:  # add SPY for reference, if absent
         symbols.insert(0, 'SPY')
 
-<<<<<<< Updated upstream
+
     for symbol in symbols:
         df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
                 parse_dates=True, usecols=['Date', 'Adj Close'], na_values=['nan'])
@@ -41,13 +41,13 @@ def get_data(symbols, dates):
         if symbol == 'SPY':  # drop dates SPY did not trade
             df = df.dropna(subset=["SPY"])
     return df
-=======
+    
 start_date = pd.to_datetime('2000-01-01')
 stop_date = pd.to_datetime('2016-03-01')
->>>>>>> Stashed changes
 
 
-<<<<<<< Updated upstream
+
+
 def test_run():
     
     
@@ -77,7 +77,7 @@ def test_run():
 
 if __name__ == "__main__":
     test_run()
-=======
+
 #spy_c = spy['Close']
 fig, ax = plt.subplots(figsize=(15,10))
 spy['Close'].plot(color = 'k')
