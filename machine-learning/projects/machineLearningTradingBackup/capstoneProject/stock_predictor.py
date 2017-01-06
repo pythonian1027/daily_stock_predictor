@@ -182,7 +182,7 @@ def data_nan_check( sbl, X, y, csets):
         sys.exit(0)
 
 #train size is the fraction of the dataset dedicated to training
-def get_training_sets(dframe, train_size):
+def get_train_test_sets(dframe, train_size):
     train_data_sz = int(dframe.shape[0]*train_size)
     train_set = dframe.ix[:train_data_sz]
     test_set = dframe.ix[train_data_sz:]
@@ -213,14 +213,14 @@ if __name__ == "__main__":
 
 #'2010-07-01', '2016-09-21'  
 #'2008-07-01', '2016-09-21'
-    dates = pd.date_range('2013-03-01', '2015-09-21')  # one month only
+    dates = pd.date_range('2013-04-01', '2014-04-01')  # one month only
 #    feats = ['_hi', '_vol', '_adcls']
-    feats = ['_hi', '_adcls']
+    feats = ['_adcls']
 #    symbols = ['SPY', 'XOM', 'WYNN']    
     symbols = []
     test_sz = 0.2
     train_sz = (1 - test_sz)
-    n_folds = 5
+    n_folds = 1
     n_lookup = 3
 
     
@@ -228,7 +228,7 @@ if __name__ == "__main__":
     print 'df.shape[0]: {}, dates: {}'.format(df.shape[0], dates)    
     #   length of training data set to 90%
     #   remaining 10% is for final testing    
-    df_train, df_test = get_training_sets(df, 0.9)
+    df_train, df_test = get_train_test_sets(df, 0.9)
 
     
     #preprocess data/ append adj column for next day (shifteed by 1) as additional 
@@ -267,20 +267,21 @@ if __name__ == "__main__":
     for s in symbols:        
          #X_train and y_train are Dataframes of the same size, shifted by n_lookup
          #training features are trained with targets n_lookup days in the future         
-        X_train = df_train.ix [ : -n_lookup, [s+feats[0], s+feats[1]]]
-        y_train = df_train.ix[ n_lookup :, s+feats[1]]    
+        X_train = df_train.ix [ : -n_lookup]
+        y_train = df_train.ix[ n_lookup :,  -1]    
         #if data contains more than 30% of cv_sets with "nan's" then through a message
         data_nan_check(s, X_train, y_train, cv_sets )
  
  #      try:
-        models = [ 'DTR', 'AdaBoost']
+#        models = [ 'DTR', 'AdaBoost']
+        models = ['SVR']
         for m in models:
             print type(X_train), type(y_train)
             reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
              # Produce the value for 'max_depth'
             print "Params for SYMBOL {}, model {} are {}".format(s, m, reg.get_params())           
-            y_predict = reg.predict(df_test.ix[: -n_lookup, [s+feats[0], s+feats[1]] ])
-            y_true = df_test.ix[ n_lookup :, s+feats[1] ]
+            y_predict = reg.predict(df_test.ix[: -n_lookup, : ])
+            y_true = df_test.ix[ n_lookup :, -1 : ]
             print 'MSE 1: {} : '.format(performance_metric_mse(y_predict, y_true))
 #            t = np.arange(0, y_true.shape[0])
  #            plt.plot(t, y_predict, 'r', t, y_true, 'b')

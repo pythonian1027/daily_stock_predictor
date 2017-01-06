@@ -2,17 +2,20 @@ import os
 import pandas as pd 
 import matplotlib.pyplot as plt 
 import numpy as np
-
+import os.path
 cwd = os.getcwd()
 print cwd
 os.chdir('../')
 cwd = os.getcwd()
+project_path = '/home/rcortez/Projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
 #path = '/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
 #path = os.path.abspath(os.path.join(cwd, os.pardir))
 #print path
 
+#sys.path.insert(0,'/home/rcortez/Projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup/')
+#from utility_func import get_data, plot_data
 
-def symbol_to_path(symbol, base_dir=cwd + '/data/'):
+def symbol_to_path(symbol, base_dir=project_path + '/data/'):
     """Return CSV file path given ticker symbol."""    
     return os.path.join(base_dir, "{}.csv".format(str(symbol)))
 
@@ -23,8 +26,9 @@ def get_data(symbols, dates):
         symbols.insert(0, 'SPY')
 
     for symbol in symbols:
-        df = pd.read_csv(symbol_to_path(symbol), index_col='Date',
+        df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
                 parse_dates=True, na_values=['nan'])        
+        df = df.join(df_temp)
         df = df.dropna()
 
     return df
@@ -59,8 +63,10 @@ def get_stats(s, n=252):
     print '\nSharpe Ratio:', sharpe_r
 
 if __name__ == "__main__":
-    dates = pd.date_range('2000-01-01', '2016-03-01')
+    
+    dates = pd.date_range('2013-04-01', '2014-03-01')
     spy = get_data(['SPY'],dates )
+    print 'len SPY: {}'.format(spy.shape)
     plot_data(spy['Close'])
     
     spy['Daily Change'] = pd.Series(spy['Close'] - spy['Open'])
@@ -101,21 +107,26 @@ if __name__ == "__main__":
 # Support Vector Regressor
     sp = spy
     print sp.shape
-    for i in range(1, 21, 1):
+    lookup_days = 10
+    tot_days_back = 21
+    for i in range(lookup_days, tot_days_back, 1):
         sp.loc[:,'Close Minus ' + str(i)] = sp['Close'].shift(i)
-        sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'Close']].iloc[20:,]
+        sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'Close']].iloc[tot_days_back - 1:,]
     
     sp20 = sp20.iloc[:,::-1]
     from sklearn.svm import SVR
     clf = SVR(kernel='linear')            
-
-    X_train = sp20[:-2000]
+    
+    trn_sz = int(sp20.shape[0]*0.75)
+    tst_sz = sp20.shape[0] - trn_sz
+    
+    X_train = sp20[:-trn_sz]
     print 'sp20', sp20.shape
     print len(X_train)
-    y_train = sp20['Close'].shift(-1)[:-2000]
+    y_train = sp20['Close'].shift(-1)[:-trn_sz]
 
-    X_test = sp20[-2000:-1000]
-    y_test = sp20['Close'].shift(-1)[-2000:-1000]
+    X_test = sp20[-trn_sz:]
+    y_test = sp20['Close'].shift(-1)[-trn_sz:]
 
     model = clf.fit(X_train, y_train)       
     preds = model.predict(X_test)
