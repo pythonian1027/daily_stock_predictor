@@ -7,7 +7,8 @@ cwd = os.getcwd()
 print cwd
 os.chdir('../')
 cwd = os.getcwd()
-project_path = '/home/rcortez/Projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
+#project_path = '/home/rcortez/Projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
+project_path ='/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup' 
 #path = '/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
 #path = os.path.abspath(os.path.join(cwd, os.pardir))
 #print path
@@ -64,7 +65,8 @@ def get_stats(s, n=252):
 
 if __name__ == "__main__":
     
-    dates = pd.date_range('2013-04-01', '2014-03-01')
+#    dates = pd.date_range('2013-04-01', '2014-03-01')
+    dates = pd.date_range('2008-01-01', '2014-04-01')  
     spy = get_data(['SPY'],dates )
     print 'len SPY: {}'.format(spy.shape)
     plot_data(spy['Close'])
@@ -107,26 +109,37 @@ if __name__ == "__main__":
 # Support Vector Regressor
     sp = spy
     print sp.shape
-    lookup_days = 10
-    tot_days_back = 21
+    lookup_days = 3
+    tot_days_back = 3
     for i in range(lookup_days, tot_days_back, 1):
         sp.loc[:,'Close Minus ' + str(i)] = sp['Close'].shift(i)
-        sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'Close']].iloc[tot_days_back - 1:,]
     
+    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'Close']].iloc[tot_days_back - 1:,]    
     sp20 = sp20.iloc[:,::-1]
+    
+#    sp = spy
+#    days_back = 3
+#    n_lookup = 3
+#    for i in range(n_lookup, days_back + n_lookup, 1):
+#        sp.loc[:,'Adj Close Minus ' + str(i)] = sp['Adj Close'].shift(i)
+#    
+#    sp20 = sp[[x for x in sp.columns if 'Adj Close Minus' in x or x == 'Adj Close']].iloc[days_back + n_lookup - 1:,]
+#    sp20 = sp20.iloc[:,::-1]   
+    
+    
     from sklearn.svm import SVR
     clf = SVR(kernel='linear')            
     
-    trn_sz = int(sp20.shape[0]*0.75)
+    trn_sz = int(sp20.shape[0]*0.90)
     tst_sz = sp20.shape[0] - trn_sz
     
-    X_train = sp20[:-trn_sz]
+    X_train = sp20[:-tst_sz]
     print 'sp20', sp20.shape
     print len(X_train)
-    y_train = sp20['Close'].shift(-1)[:-trn_sz]
+    y_train = sp20['Close'].shift(-1)[:-tst_sz]
 
-    X_test = sp20[-trn_sz:]
-    y_test = sp20['Close'].shift(-1)[-trn_sz:]
+    X_test = sp20[-tst_sz:]
+    y_test = sp20['Close'].shift(-1)[-tst_sz:]
 
     model = clf.fit(X_train, y_train)       
     preds = model.predict(X_test)

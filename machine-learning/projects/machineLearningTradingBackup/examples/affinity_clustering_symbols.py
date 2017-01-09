@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn import covariance, cluster
+from sklearn.utils import shuffle
 #from matplotlib.finance import quotes_historical_yahoo_ochl as quotes_yahoo
 import os
 import sys
@@ -143,7 +144,7 @@ if __name__ == "__main__":
        
 
                 
-    num_symbols = 250
+    num_symbols = 150
     delta_quotes = delta_quotes[:, :num_symbols]
     symbols = symbols[:num_symbols]
     delta_quotes = delta_quotes.T

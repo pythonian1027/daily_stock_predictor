@@ -139,11 +139,11 @@ def fit_model(X,y, model, cv_sets):
         regressor = SVR() 
 #        params = { 'C':[ 10, 3, 0.01, 100, 1e3, 1e4, 1e5],            
 #               'gamma': [0.0001, 0.001, 0.01, 0.1]}  
-        params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['rbf']}                 
+        params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['linear']}                 
 #        scoring_fnc = make_scorer(performance_metric_mse)               
         
     elif model == 'AdaBoost':
-        regressor = AdaBoostRegressor(SVR(), n_estimators = 2, random_state = None) 
+        regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 200, random_state = None) 
         params = {}
         
     scoring_fnc = make_scorer(performance_metric_mse, greater_is_better = False)                              
@@ -206,14 +206,27 @@ def fit_model_inputs(train_size, n_lookup, n_folds, test_sz, train_sz):
     numel_train = int(math.floor(train_size - n_lookup)/(1. + n_folds*(float(test_sz)/train_sz)))
     numel_test = int(math.floor( numel_train * (float(test_sz)/train_sz) ))
     cvsets = generate_cv_sets(numel_train, numel_test, n_folds)                        
-    return numel_train, numel_test, cvsets                        
+    return numel_train, numel_test, cvsets   
+
+def print_results(mod, predictions, target):
+    print '{} : MSE = {}'.format(mod, mean_squared_error(predictions, target))
+    result = 100*np.mean((target.values - predictions)/target.values)
+    print 'avg. percentage error {}'.format(result)
+    evs = explained_variance_score(target, predictions)
+    print 'Explained Variance Score = {}'.format(evs)
+                     
+def plot_results(predictions, target):
+    t = np.arange(0, target.shape[0])
+    plt.plot(t, predictions, 'r', t, target, 'b')
+    plt.show()    
+                         
                         
 if __name__ == "__main__":
-#    run()
+    days_back = 10
 
 #'2010-07-01', '2016-09-21'  
 #'2008-07-01', '2016-09-21'
-    dates = pd.date_range('2013-04-01', '2014-04-01')  # one month only
+    dates = pd.date_range('2008-01-01', '2014-04-01')  
 #    feats = ['_hi', '_vol', '_adcls']
     feats = ['_adcls']
 #    symbols = ['SPY', 'XOM', 'WYNN']    
@@ -221,10 +234,11 @@ if __name__ == "__main__":
     test_sz = 0.2
     train_sz = (1 - test_sz)
     n_folds = 1
-    n_lookup = 3
+    n_lookup = 7
 
     
-    df = get_data(symbols, dates)   
+    df1 = get_data(symbols, dates) 
+    df = df1.ix[days_back - 1:,: ]
     print 'df.shape[0]: {}, dates: {}'.format(df.shape[0], dates)    
     #   length of training data set to 90%
     #   remaining 10% is for final testing    
@@ -254,58 +268,179 @@ if __name__ == "__main__":
 #    cv_sets = generate_cv_sets(num_elem_train, num_elem_test, n_folds)
             
 #==============================================================================
-    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)
+#    #cv_sets are the main output. num_elem_train and num_elem_test are used as inputs to 
+#    #generate cv_sets
+#    num_elem_train, num_elem_test, cv_sets = fit_model_inputs(df_train.shape[0], n_lookup, n_folds, test_sz, train_sz)
+##     
+#    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
+#    print 'df.shape[0]: {}, df_train: {},  n days lookup {}:'.format(df.shape[0], df_train.shape[0] ,n_lookup)
+#    print 'num_elem_train', num_elem_train
+#    print 'num_elem_test', num_elem_test    
 #     
-    print 'train ratio {}'.format(float(num_elem_train)/(num_elem_train + num_elem_test))    
-    print 'df.shape[0]: {}, df_train: {},  n days lookup {}:'.format(df.shape[0], df_train.shape[0] ,n_lookup)
-    print 'num_elem_train', num_elem_train
-    print 'num_elem_test', num_elem_test    
-     
-    print 'df: {}, df_train: {},\ndf_test:  {},\ndf_test.shape[0]: {}\n\n'\
-    .format(df.index[0], df_train.index[0], df_test.index[0], df_test.shape[0])     
-    #calculate feature and target set with n_lookup days in advance
-    for s in symbols:        
-         #X_train and y_train are Dataframes of the same size, shifted by n_lookup
-         #training features are trained with targets n_lookup days in the future         
-        X_train = df_train.ix [ : -n_lookup]
-        y_train = df_train.ix[ n_lookup :,  -1]    
-        #if data contains more than 30% of cv_sets with "nan's" then through a message
-        data_nan_check(s, X_train, y_train, cv_sets )
- 
- #      try:
-#        models = [ 'DTR', 'AdaBoost']
-        models = ['SVR']
-        for m in models:
-            print type(X_train), type(y_train)
-            reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
-             # Produce the value for 'max_depth'
-            print "Params for SYMBOL {}, model {} are {}".format(s, m, reg.get_params())           
-            y_predict = reg.predict(df_test.ix[: -n_lookup, : ])
-            y_true = df_test.ix[ n_lookup :, -1 : ]
-            print 'MSE 1: {} : '.format(performance_metric_mse(y_predict, y_true))
+#    print 'df: {}, df_train: {},\ndf_test:  {},\ndf_test.shape[0]: {}\n\n'\
+#    .format(df.index[0], df_train.index[0], df_test.index[0], df_test.shape[0])     
+#    #calculate feature and target set with n_lookup days in advance
+#    for s in symbols:        
+#         #X_train and y_train are Dataframes of the same size, shifted by n_lookup
+#         #training features are trained with targets n_lookup days in the future         
+#        X_train = df_train.ix [ : -n_lookup]    
+#        y_train = df_train.ix[ n_lookup :,  -1]    
+#        #if data contains more than 30% of cv_sets with "nan's" then through a message
+#        data_nan_check(s, X_train, y_train, cv_sets )
+# 
+# #      try:
+##        models = [ 'DTR', 'AdaBoost']
+#        models = ['SVR']
+#        for m in models:
+#            print type(X_train), type(y_train)
+#            reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
+#             # Produce the value for 'max_depth'
+#            print "Params for SYMBOL {}, model {} are {}".format(s, m, reg.get_params())           
+#            y_predict = reg.predict(df_test.ix[: -n_lookup, : ])
+#            y_true = df_test.ix[ n_lookup :, -1 : ]
+#            print 'MSE 1: {} : '.format(performance_metric_mse(y_predict, y_true))
+##            t = np.arange(0, y_true.shape[0])
+# #            plt.plot(t, y_predict, 'r', t, y_true, 'b')
+#             
+#            #take values to convert dataframe to np arrays to be consistent with y_predict
+#            result = 100*np.mean((y_true.values - y_predict)/y_true.values)
+#            print 'avg % within actual value : {}'.format(result)
+#           
 #            t = np.arange(0, y_true.shape[0])
- #            plt.plot(t, y_predict, 'r', t, y_true, 'b')
-             
-            #take values to convert dataframe to np arrays to be consistent with y_predict
-            result = 100*np.mean((y_true.values - y_predict)/y_true.values)
-            print 'avg % within actual value : {}'.format(result)
-            t = np.arange(0, y_true.shape[0])
-            plt.plot(t, y_predict, 'r', t, y_true, 'b')
-            plt.show()
-            mse = mean_squared_error(y_true, y_predict)
-            evs = explained_variance_score(y_true, y_predict)
-            
-            print "\n#### AdaBoost performance ####"
-            print "Mean squared error =", round(mse, 2)
-            print "Explained variance score =", round(evs, 2)
-            
-            # Plot relative feature importances 
-#            plot_feature_importances(reg.feature_importances_, 
-#            m, np.array(['High', 'Adj Close']))
+#            plt.plot(t, y_predict, 'r', t, y_true, 'b')
+#            plt.show()
+#            mse = mean_squared_error(y_true, y_predict)
+#            evs = explained_variance_score(y_true, y_predict)
+#            
+##            print "\n#### AdaBoost performance ####"
+#            print "Mean squared error =", round(mse, 2)
+#            print "Explained variance score =", round(evs, 2)
+#            
+#            # Plot relative feature importances 
+##            plot_feature_importances(reg.feature_importances_, 
+##            m, np.array(['High', 'Adj Close']))
             
 
-    print '\n'            
+#    print '\n'            
 #==============================================================================
+
+    sp = df1.ix[:,['SPY_adcls']]
+    print sp.shape    
+   
+    for i in range(n_lookup, days_back + n_lookup, 1):
+        sp.loc[:,'Close Minus ' + str(i)] = sp['SPY_adcls'].shift(i)
+    
+    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'SPY_adcls']].iloc[days_back + n_lookup - 1:,]
+    sp20 = sp20.iloc[:,::-1]
+    
+    sp20_train, sp20_test = get_train_test_sets(sp20, 0.9)
+    X_train = sp20_train.ix [ : , : -1] # use previous closing prices as features
+    y_train = sp20_train.ix[ :,  -1] # use last column, adjcls, as a target
+    
+    
+    
+#    models = ['SVR']
+    models = [ 'DTR', 'AdaBoost', 'SVR']
+    for m in models:
+        print type(X_train), type(y_train)
+        num_elem_train, num_elem_test, cv_sets = fit_model_inputs(sp20_train.shape[0], 
+                                                                  n_lookup, 
+                                                                  n_folds, test_sz, train_sz)
+
+        reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
+         # Produce the value for 'max_depth'
+        print "Params for model {} are {}".format(m, reg.get_params())           
+#        y_predict = reg.predict(df_test.ix[: -n_lookup, : ])
+#        y_true = df_test.ix[ n_lookup :, -1 : ]
+        y_predict = reg.predict(sp20_test.ix[n_lookup:, : -1]) #n_lookup is to shift data so that dates matches w/ previous algo
+        
+        y_true = sp20_test.ix[n_lookup:, -1] #n_lookup is to shift data so that dates matches w/ previous algo
+        
+        print_results(m, y_predict, y_true)
+        plot_results(y_predict, y_true)
+
+#==============================================================================
+#        from sklearn.svm import SVR
+#        clf = SVR(kernel='linear')            
+#
+#        sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'SPY_adcls']].iloc[days_back + n_lookup - 1:,]
+#        sp20 = sp20.iloc[:,::-1]       
+#        
+#        trn_sz = int(sp20.shape[0]*0.90)
+#        tst_sz = sp20.shape[0] - trn_sz
+#    
+#        X_train = sp20.ix[:-tst_sz, : -1]
+#        print 'sp20', sp20.shape
+#        print len(X_train)
+#        y_train = sp20.ix[:-tst_sz, -1]
+#        
+#        X_test = sp20.ix[-tst_sz:,: -1]
+#        y_test = sp20.ix[-tst_sz:, -1]
+#        
+#        X_test = X_test.ix[n_lookup:, :]#n_lookup is to shift data so that dates matches w/ previous algo
+#        y_test = y_test.ix[n_lookup:,] #n_lookup is to shift data so that dates matches w/ previous algo
+#
+#        model = clf.fit(X_train, y_train)       
+#        preds = model.predict(X_test)
+#    
+#        t = np.arange(0, len(preds))
+#        plt.plot(t, preds, 'r', t, y_test, 'b')
+#        plt.show()
+#        mse = mean_squared_error(y_test, preds)
+#        evs = explained_variance_score(y_test, preds)
+#        
+##        print "\n#### AdaBoost performance ####"
+#        print "Mean squared error =", round(mse, 2)
+#        print "Explained variance score =", round(evs, 2)     
+#        result = 100*np.mean((y_test.values - preds)/y_test.values)
+#        print 'avg % within actual value : {}'.format(result)        
+# 
+#==============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #==============================================================================
