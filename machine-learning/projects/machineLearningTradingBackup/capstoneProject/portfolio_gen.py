@@ -12,7 +12,8 @@ based on stock_market.py from Chapter 04 Machine Learning Cookbook
 @author: rcortez
 """
 
-import pandas_datareader.data as web
+#import pandas_datareader.data as web
+import pandas.io.data as web
 import datetime
 import pandas as pd
 
@@ -28,7 +29,12 @@ import sys
 import pickle
 
 
-proj_path ='/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup' 
+#proj_path ='/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup' 
+#cwd = os.getcwd()
+#print cwd
+os.chdir('../')
+proj_path = os.getcwd()
+
 ptf_fnames = dict()
 ptf_fnames['buffett'] = 'buffett_port_syms.pickle'        
 
@@ -39,7 +45,11 @@ def load_symbols(filename):
     
 #symbols can be either a list of symbols or a portfolio name     
 def download_hist_data(portfolio, start_date, end_date):
-
+    if os.path.isdir(proj_path) is False:
+        print 'Project path {} does not exist'.format(proj_path)
+        sys.exit(0)
+            
+    
     if type(portfolio) == str: # true then it is a portfolio name        
         symbs = load_symbols(ptf_fnames[portfolio])
         symbols = list()
@@ -48,6 +58,7 @@ def download_hist_data(portfolio, start_date, end_date):
             symbs.insert(0,'SPY')        
         for s in symbs:                               
             if os.path.isfile(proj_path + '/{}_data/{}.csv'.format(portfolio, s)) is False:
+                print proj_path + '/{}_data/{}.csv'.format(portfolio, s)
                 try:                    
                     print 'Downloading data from Yahoo for symbos {}'.format(s)                     
                     dframe = web.DataReader(name=s, data_source='yahoo', start=start_date, end=end_date)                    

@@ -23,7 +23,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys, traceback
 
-project_path ='/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup' 
+#project_path ='/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup' 
+cwd = os.getcwd()
+os.chdir('../')
+project_path = os.getcwd()
 
 def symbol_to_path(symbol, base_dir=project_path + '/data/'):
     """Return CSV file path given ticker symbol."""    
@@ -45,21 +48,21 @@ def get_adj_close_data(symbols, dates):
 
     return df
 
-def get_data(symbols, dates):
-    """Read stock data (adjusted close) for given symbols from CSV files."""
-    df = pd.DataFrame(index=dates)
-    if 'SPY' not in symbols:  # add SPY for reference, if absent
-        symbols.insert(0, 'SPY')
-
-    for symbol in symbols:
-        df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
-                parse_dates=True, usecols=['Date', 'High', 'Adj Close'], na_values=['nan'])
-        df_temp = df_temp.rename(columns={'Adj Close': symbol + '_adcls'})
-        df_temp = df_temp.rename(columns={'High': symbol + '_hi'})        
-        df = df.join(df_temp)
-        if symbol == 'SPY':  # drop dates SPY did not trade
-            df = df.dropna(subset=["SPY_adcls"])
-    return df
+#def get_data(symbols, dates):
+#    """Read stock data (adjusted close) for given symbols from CSV files."""
+#    df = pd.DataFrame(index=dates)
+#    if 'SPY' not in symbols:  # add SPY for reference, if absent
+#        symbols.insert(0, 'SPY')
+#
+#    for symbol in symbols:
+#        df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
+#                parse_dates=True, usecols=['Date', 'High', 'Adj Close'], na_values=['nan'])
+#        df_temp = df_temp.rename(columns={'Adj Close': symbol + '_adcls'})
+#        df_temp = df_temp.rename(columns={'High': symbol + '_hi'})        
+#        df = df.join(df_temp)
+#        if symbol == 'SPY':  # drop dates SPY did not trade
+#            df = df.dropna(subset=["SPY_adcls"])
+#    return df
 
 def plot_feature_importances(feature_importances, title, feature_names):
     # Normalize the importance values 
