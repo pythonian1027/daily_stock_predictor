@@ -36,7 +36,6 @@ def gen_paths(S0, r, sigma, T, M, I):
             S0 : float
                 initial stock/index value
             r : float
-                constant short rate
             sigma : float
                 constant volatility
             T : float
@@ -166,7 +165,7 @@ if __name__ == "__main__":
     import pandas.io.data as web
     
     symbols = ['SPY', 'AAPL', 'IBM', 'LEE']
-    start_date = datetime.datetime(2014, 4, 5)
+    start_date = datetime.datetime(2010, 4, 5)
     end_date = datetime.datetime(2015, 6, 2) 
     dates = pd.date_range(start_date, end_date)  
 #    symbols = download_hist_data('buffett', start_date, end_date )
