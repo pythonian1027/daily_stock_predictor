@@ -78,7 +78,7 @@ def download_hist_data(portfolio, start_date, end_date):
     
     return symbols   
     
-def symbol_to_path(symbol, base_dir= proj_path + '/buffett_data/'):
+def symbol_to_path(symbol, base_dir= proj_path + '/data/'):
     """Return CSV file path given ticker symbol."""    
     return os.path.join(base_dir, "{}.csv".format(str(symbol)))
 
@@ -159,99 +159,164 @@ def get_data(symbols, dates):
 #    return np_delta[:, 0:num_cols - 1]
 
 if __name__ == "__main__":
-    
-#    symbols = load_symbols(ptf_fnames['buffett'])
-    
+
+#==============================================================================
+#          Portfolio Optimization
+#==============================================================================
     start_date = datetime.datetime(2014, 4, 5)
     end_date = datetime.datetime(2015, 6, 2)   
-    dates = pd.date_range(start_date, end_date)  
+    dates = pd.date_range(start_date, end_date)           
+#    symbols = ['SPY', 'AAPL', 'IBM', 'LEE']    
     symbols  = download_hist_data('buffett', start_date, end_date )
+    print symbols
+    noa = len(symbols)     
+     
     
-    
-    quotes = list()    
-    miss_data = list()
-    for s in symbols:
-        data = get_data_all(s, dates)
-        if s == 'SPY':
-            len_data = data.shape[0]
-        if  data.shape[0] < len_data:
-            print 'missing dates for symbol {} ...omitted from clustering'.format(s)
-            miss_data.append(s)                
-        else:
-            quotes.append(data)
-    
-#   remove symbols with missing data from symbols list    
-    for k in miss_data:
-        symbols.remove(k)
-    
-#     Extract opening and closing quotes
-    opening_quotes = np.array([quote['Open'] for quote in quotes]).astype(np.float)
-    closing_quotes = np.array([quote['Close'] for quote in quotes]).astype(np.float)
- 
-    
-    # The daily fluctuations of the quotes 
-    delta_quotes = closing_quotes - opening_quotes    
+#    for sym in symbols:
+#         data[sym] = web.DataReader(sym, data_source='yahoo',
+#                                        end='2014-09-12')['Adj Close']
+#    data.columns = symbols
+    data = get_data(symbols, dates)
 
-#    # Build a graph model from the correlations
-    #GraphLassoCV produces a sparse inverse convariance matrix (fit model takes 
-    # an nd-array w/ shape (n_samples, n_feautes))
-    edge_model = covariance.GraphLassoCV()
+#    (data / data.ix[0] * 100).plot(figsize=(8, 5))     
+    rets = np.log(data / data.shift(1))   
+    rets.mean() * 252       #anualize
+    rets.cov() * 252    
     
-#    # Standardize the data 
-    X = delta_quotes.copy().T
-    X /= X.std(axis=0)
+#==============================================================================
+#     The Basic Theory
+#==============================================================================
+    weights = np.random.random(noa)
+    weights /= np.sum(weights)
     
-    # Train the model
-    with np.errstate(invalid='ignore'):
-        edge_model.fit(X)
+    np.sum(rets.mean() * weights) * 252
+    # expected portfolio return    
     
-    # Build clustering model using affinity propagation
-    _, labels = cluster.affinity_propagation(edge_model.covariance_)
-    num_labels = labels.max()
+    np.dot(weights.T, np.dot(rets.cov() * 252, weights))
+    # expected portfolio variance    
     
-    # Print the results of clustering
-    for i in range(num_labels + 1):
-        print "\nCluster", i+1, "-->", ', '.join(np.array(symbols)[labels == i])
+    np.sqrt(np.dot(weights.T, np.dot(rets.cov() * 252, weights)))
+    # expected portfolio standard deviation/volatility    
+    
+    prets = list()
+    pvols = list()
+    sub_opt_weight = 0
+    W = list()
+    for p in range (450):
+        weights = np.random.random(noa)
+        weights /= np.sum(weights)
+        exp_return = np.sum(rets.mean() * weights) * 252
+        exp_volat = np.sqrt(np.dot(weights.T, np.dot(rets.cov() * 252, weights)))
+        prets.append(exp_return)
+        pvols.append(exp_volat)
+        if exp_return > 0.17 and exp_volat < 0.111:
+            W.append((exp_return/exp_volat, weights, exp_return, exp_volat))
+            
+                        
+    print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(W)[0], max(W)[2], max(W)[3])
+                                     
+    prets = np.array(prets)
+    pvols = np.array(pvols)    
+    
+    plt.figure(figsize=(8, 4))
+    plt.scatter(pvols, prets, c=prets / pvols, marker='o')
+    plt.grid(True)
+    plt.xlabel('expected volatility')
+    plt.ylabel('expected return')
+    plt.colorbar(label='Sharpe ratio')    
 
-
-    #analyze risk by std
-    var = [np.var(d) for d in delta_quotes]
-#    std = [np.std(q['Adj Close']) for q in quotes]
-#    d = {'std' : pd.Series(std), 'var': pd.Series(var)}
-    d  = {'var':pd.Series(var)}
-    df = pd.DataFrame(d)    
+#%% 
+##    symbols = load_symbols(ptf_fnames['buffett'])
+#    start_date = datetime.datetime(2014, 4, 5)
+#    end_date = datetime.datetime(2015, 6, 2)   
+#    dates = pd.date_range(start_date, end_date)  
+#    symbols  = download_hist_data('buffett', start_date, end_date )
+#    
+#    
+#    quotes = list()    
+#    miss_data = list()
+#    for s in symbols:
+#        data = get_data_all(s, dates)
+#        if s == 'SPY':
+#            len_data = data.shape[0]
+#        if  data.shape[0] < len_data:
+#            print 'missing dates for symbol {} ...omitted from clustering'.format(s)
+#            miss_data.append(s)                
+#        else:
+#            quotes.append(data)
+#    
+##   remove symbols with missing data from symbols list    
+#    for k in miss_data:
+#        symbols.remove(k)
+#    
+##     Extract opening and closing quotes
+#    opening_quotes = np.array([quote['Open'] for quote in quotes]).astype(np.float)
+#    closing_quotes = np.array([quote['Close'] for quote in quotes]).astype(np.float)
+# 
+#    
+#    # The daily fluctuations of the quotes 
+#    delta_quotes = closing_quotes - opening_quotes    
+#
+##    # Build a graph model from the correlations
+#    #GraphLassoCV produces a sparse inverse convariance matrix (fit model takes 
+#    # an nd-array w/ shape (n_samples, n_feautes))
+#    edge_model = covariance.GraphLassoCV()
+#    
+##    # Standardize the data 
+#    X = delta_quotes.copy().T
+#    X /= X.std(axis=0)
+#    
+#    # Train the model
+#    with np.errstate(invalid='ignore'):
+#        edge_model.fit(X)
+#    
+#    # Build clustering model using affinity propagation
+#    _, labels = cluster.affinity_propagation(edge_model.covariance_)
+#    num_labels = labels.max()
+#    
+#    # Print the results of clustering
+#    for i in range(num_labels + 1):
+#        print "\nCluster", i+1, "-->", ', '.join(np.array(symbols)[labels == i])
+#
+#
+#    #analyze risk by std
+#    var = [np.var(d) for d in delta_quotes]
+##    std = [np.std(q['Adj Close']) for q in quotes]
+##    d = {'std' : pd.Series(std), 'var': pd.Series(var)}
+#    d  = {'var':pd.Series(var)}
+#    df = pd.DataFrame(d)    
+#    
+#    df.index = symbols
+##    df_sorted = df.sort_index(by='var')
+#    
+#    
+#    #model and prediction 
+#    lookup_days = 1
+#    tot_days_back = 7
+#    mse = list()
+#    for q in quotes:             
+#        for i in range(lookup_days, tot_days_back, 1):
+#            q.loc[:,'Adj Close Minus ' + str(i)] = q['Adj Close'].shift(i)
+#        
+#        sp20 = q[[x for x in q.columns if 'Adj Close Minus' in x or x == 'Adj Close']].iloc[tot_days_back - 1:,]    
+#        sp20 = sp20.iloc[:,::-1]    
+#        
+#        from sklearn.svm import SVR
+#        clf = SVR(kernel='linear')
+#    
+#        sp20_train, sp20_test = get_train_test_sets(sp20, 0.9)
+#        X_train = sp20_train.ix [ : , : -1] # use previous closing prices as features
+#        y_train = sp20_train.ix[ :,  -1] # use last column, adjcls, as a target
+#        reg = clf.fit(X_train, y_train)                  
+#        
+#        y_predict = reg.predict(sp20_test.ix[:, : -1]) #n_lookup is to shift data so that dates matches w/ previous algo
+#        y_true = sp20_test.ix[:, -1] #n_lookup is to shift data so that dates matches w/ previous algo        
+#
+#        print_results('SVR', y_predict, y_true)
+#        mse.append(mean_squared_error(y_predict, y_true))
+#    
+#    
+#    df['mse_{}_days'.format(lookup_days)] = mse
     
-    df.index = symbols
-#    df_sorted = df.sort_index(by='var')
-    
-    
-    #model and prediction 
-    lookup_days = 1
-    tot_days_back = 7
-    mse = list()
-    for q in quotes:             
-        for i in range(lookup_days, tot_days_back, 1):
-            q.loc[:,'Adj Close Minus ' + str(i)] = q['Adj Close'].shift(i)
-        
-        sp20 = q[[x for x in q.columns if 'Adj Close Minus' in x or x == 'Adj Close']].iloc[tot_days_back - 1:,]    
-        sp20 = sp20.iloc[:,::-1]    
-        
-        from sklearn.svm import SVR
-        clf = SVR(kernel='linear')
-    
-        sp20_train, sp20_test = get_train_test_sets(sp20, 0.9)
-        X_train = sp20_train.ix [ : , : -1] # use previous closing prices as features
-        y_train = sp20_train.ix[ :,  -1] # use last column, adjcls, as a target
-        reg = clf.fit(X_train, y_train)                  
-        
-        y_predict = reg.predict(sp20_test.ix[:, : -1]) #n_lookup is to shift data so that dates matches w/ previous algo
-        y_true = sp20_test.ix[:, -1] #n_lookup is to shift data so that dates matches w/ previous algo        
-
-        print_results('SVR', y_predict, y_true)
-        mse.append(mean_squared_error(y_predict, y_true))
-    
-    
-    df['mse_{}_days'.format(lookup_days)] = mse
-    
-    
+#%%    
     

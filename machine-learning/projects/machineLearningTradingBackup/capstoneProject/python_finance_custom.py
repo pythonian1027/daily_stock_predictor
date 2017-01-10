@@ -718,7 +718,7 @@ if __name__ == "__main__":
 #
 #To this end, let us divide the total time frame into two subintervals. We can then implement an early and a late regression:
 
-    cut_date = '2014/11/1'
+    cut_date = '2015/03/01'
     early_pca = dax[dax.index < cut_date]['PCA_5']
     early_reg = np.polyval(np.polyfit(early_pca,
                          dax['SPY'][dax.index < cut_date], 1),
@@ -1204,4 +1204,4 @@ if __name__ == "__main__":
 #[46] Cf. http://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo. For example, the Monte Carlo algorithms used throughout the book and analyzed in detail in Chapter 10 all generate so-called Markov chains, since the immediate next step/value only depends on the current state of the process and not on any other historic state or value.
 #
 #[47] Note also here that we are working with absolute price levels and not return data, which would be statistically more sound. For a real-world (trading) application, you would rather choose the return data to implement such an analysis.
-#                 
+#                      

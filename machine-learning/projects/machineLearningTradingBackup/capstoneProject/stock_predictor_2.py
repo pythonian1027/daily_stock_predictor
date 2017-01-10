@@ -13,6 +13,7 @@ from sklearn.tree import  DecisionTreeRegressor
 from sklearn.metrics import mean_squared_error, explained_variance_score
 from sklearn.metrics import r2_score
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
+from portfolio_gen import get_data
 
 from sklearn.svm import SVR
 import numpy as np
@@ -110,7 +111,7 @@ def fit_model(X,y, model, cv_sets):
         regressor = SVR() 
         params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['linear']}                 
     elif model == 'AdaBoost':
-        regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 200, random_state = None) 
+        regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 50, random_state = None) 
         params = {}
         
     scoring_fnc = make_scorer(performance_metric_mse, greater_is_better = False)                              
@@ -174,7 +175,7 @@ def fit_model_inputs(train_size, n_lookup, n_folds, test_sz, train_sz):
 def print_results(mod, predictions, target):
     print '{} : MSE = {}'.format(mod, mean_squared_error(predictions, target))
     result = 100*np.mean((target.values - predictions)/target.values)
-    print 'avg. percentage error {}'.format(result)
+    print 'Avg. Percentage Error {}'.format(result)
     evs = explained_variance_score(target, predictions)
     print 'Explained Variance Score = {}'.format(evs)
                      
@@ -185,12 +186,12 @@ def plot_results(predictions, target):
                          
                         
 if __name__ == "__main__":
-    days_back = 10
-    dates = pd.date_range('2008-01-01', '2014-04-01')  
+    days_back = 14
+    dates = pd.date_range('2013-01-01', '2014-01-01')  
 
-    feats = ['_adcls']
+#    feats = ['_adcls']
 #    symbols = ['SPY', 'XOM', 'WYNN']    
-    symbols = []
+    symbols = ['SPY']    
     test_sz = 0.2
     train_sz = (1 - test_sz)
     n_folds = 1
@@ -204,31 +205,35 @@ if __name__ == "__main__":
     #   remaining 10% is for final testing    
     df_train, df_test = get_train_test_sets(df, 0.9)    
 
-    sp = df1.ix[:,['SPY_adcls']]
-    print sp.shape    
+    
+    
    
-    for i in range(n_lookup, days_back + n_lookup, 1):
-        sp.loc[:,'Close Minus ' + str(i)] = sp['SPY_adcls'].shift(i)
-    
-    sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == 'SPY_adcls']].iloc[days_back + n_lookup - 1:,]
-    sp20 = sp20.iloc[:,::-1]
-    
-    sp20_train, sp20_test = get_train_test_sets(sp20, 0.9)
-    X_train = sp20_train.ix [ : , : -1] # use previous closing prices as features
-    y_train = sp20_train.ix[ :,  -1] # use last column, adjcls, as a target
-    
-    models = [ 'DTR', 'AdaBoost', 'SVR']
-    for m in models:
-        print type(X_train), type(y_train)
-        num_elem_train, num_elem_test, cv_sets = fit_model_inputs(sp20_train.shape[0], 
-                                                                  n_lookup, 
-                                                                  n_folds, test_sz, train_sz)
-
-        reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
-         # Produce the value for 'max_depth'
-        print "Params for model {} are {}".format(m, reg.get_params())           
-        y_predict = reg.predict(sp20_test.ix[n_lookup:, : -1]) #n_lookup is to shift data so that dates matches w/ previous algo
-        y_true = sp20_test.ix[n_lookup:, -1] #n_lookup is to shift data so that dates matches w/ previous algo        
-
-        print_results(m, y_predict, y_true)
-        plot_results(y_predict, y_true)
+    for s in symbols:       
+        sp = df1.ix[:,[s]]    
+        for i in range(n_lookup, days_back + n_lookup, 1):
+            sp.loc[:,'Close Minus ' + str(i)] = sp[s].shift(i)
+        
+        sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == s]].iloc[days_back + n_lookup - 1:,]
+        sp20 = sp20.iloc[:,::-1]
+        
+        sp20_train, sp20_test = get_train_test_sets(sp20, 0.9)
+        X_train = sp20_train.ix [ : , : -1] # use previous closing prices as features
+        y_train = sp20_train.ix[ :,  -1] # use last column, adjcls, as a target
+        
+#        models = [ 'DTR', 'AdaBoost', 'SVR']
+        models = [ 'SVR']        
+        
+        for m in models:
+            print type(X_train), type(y_train)
+            num_elem_train, num_elem_test, cv_sets = fit_model_inputs(sp20_train.shape[0], 
+                                                                      n_lookup, 
+                                                                      n_folds, test_sz, train_sz)
+        
+            reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
+             # Produce the value for 'max_depth'
+            print "Params for model {} are {}".format(m, reg.get_params())           
+            y_predict = reg.predict(sp20_test.ix[n_lookup:, : -1]) #n_lookup is to shift data so that dates matches w/ previous algo            
+            y_true = sp20_test.ix[n_lookup:, -1] #n_lookup is to shift data so that dates matches w/ previous algo        
+            print y_predict - y_true            
+            print_results(m, y_predict, y_true)
+            plot_results(y_predict, y_true)
