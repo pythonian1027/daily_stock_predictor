@@ -36,7 +36,6 @@ def gen_paths(S0, r, sigma, T, M, I):
             S0 : float
                 initial stock/index value
             r : float
-                constant short rate
             sigma : float
                 constant volatility
             T : float
@@ -166,7 +165,7 @@ if __name__ == "__main__":
     import pandas.io.data as web
     
     symbols = ['SPY', 'AAPL', 'IBM', 'LEE']
-    start_date = datetime.datetime(2014, 4, 5)
+    start_date = datetime.datetime(2010, 4, 5)
     end_date = datetime.datetime(2015, 6, 2) 
     dates = pd.date_range(start_date, end_date)  
 #    symbols = download_hist_data('buffett', start_date, end_date )
@@ -1205,4 +1204,4 @@ if __name__ == "__main__":
 #[46] Cf. http://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo. For example, the Monte Carlo algorithms used throughout the book and analyzed in detail in Chapter 10 all generate so-called Markov chains, since the immediate next step/value only depends on the current state of the process and not on any other historic state or value.
 #
 #[47] Note also here that we are working with absolute price levels and not return data, which would be statistically more sound. For a real-world (trading) application, you would rather choose the return data to implement such an analysis.
-#            
+#                 

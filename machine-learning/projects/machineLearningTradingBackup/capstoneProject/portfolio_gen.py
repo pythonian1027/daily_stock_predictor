@@ -156,7 +156,7 @@ def get_data(symbols, dates):
 #                    df = df.join(df_temp)
 #                    if symbol == 'SPY':  # drop dates SPY did not trade
 #                        df = df.dropna(subset=['SPY'])
-    return np_delta[:, 0:num_cols - 1]
+#    return np_delta[:, 0:num_cols - 1]
 
 if __name__ == "__main__":
     
