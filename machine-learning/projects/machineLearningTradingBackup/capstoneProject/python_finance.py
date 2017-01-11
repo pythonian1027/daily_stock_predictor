@@ -665,7 +665,7 @@ if __name__ == "__main__":
 #In view of the results so far, we want to inspect the relationship between the DAX index and the PCA index in a different way—via a scatter plot, adding date information to the mix. First, we convert the DatetimeIndex of the DataFrame object to a matplotlib-compatible format:
 
     import matplotlib as mpl
-    mpl_dates = mpl.dates.date2num(data.index)
+    mpl_dates = mpl.dates.date2num(data.index.to_pydatetime())
     mpl_dates
 
 #This new date list can be used for a scatter plot, highlighting through different colors which date each data point is from. Figure 11-17 shows the data in this fashion:
@@ -1175,4 +1175,4 @@ if __name__ == "__main__":
 #[46] Cf. http://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo. For example, the Monte Carlo algorithms used throughout the book and analyzed in detail in Chapter 10 all generate so-called Markov chains, since the immediate next step/value only depends on the current state of the process and not on any other historic state or value.
 #
 #[47] Note also here that we are working with absolute price levels and not return data, which would be statistically more sound. For a real-world (trading) application, you would rather choose the return data to implement such an analysis.
-#       
+#            

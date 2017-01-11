@@ -35,48 +35,52 @@ import pickle
 os.chdir('../')
 proj_path = os.getcwd()
 
-ptf_fnames = dict()
-ptf_fnames['buffett'] = 'buffett_port_syms.pickle'        
+
+      
 
 def load_symbols(filename):
     with open(filename, 'rb') as handle:
         symbols = pickle.load(handle)
     return symbols        
-    
+
+def download_symbol(s):
+    try:
+        dframe = web.DataReader(name= s, data_source = 'yahoo', start = start_date, end = end_date)
+        dframe.to_csv(proj_path + '/data/{}.csv'.format(s), index_label="Date")
+    except Exception:
+        print 'Unable to downloaddata for symbol: {}'
+         
 #symbols can be either a list of symbols or a portfolio name     
-def download_hist_data(portfolio, start_date, end_date):
+def download_hist_data(symbols, start_date, end_date):
     if os.path.isdir(proj_path) is False:
         print 'Project path {} does not exist'.format(proj_path)
         sys.exit(0)
-            
     
-    if type(portfolio) == str: # true then it is a portfolio name        
-        symbs = load_symbols(ptf_fnames[portfolio])
-        symbols = list()
-        
-        if 'SPY' not in symbs:
-            symbs.insert(0,'SPY')        
-        for s in symbs:                               
-            if os.path.isfile(proj_path + '/{}_data/{}.csv'.format(portfolio, s)) is False:
-                print proj_path + '/{}_data/{}.csv'.format(portfolio, s)
-                try:                    
-                    print 'Downloading data from Yahoo for symbos {}'.format(s)                     
-                    dframe = web.DataReader(name=s, data_source='yahoo', start=start_date, end=end_date)                    
-                    print 'writing to file %s symbol' %s
-                    if os.path.isdir(proj_path + '/{}_data'.format(portfolio)) is False:
-                        os.mkdir(proj_path + '/{}_data'.format(portfolio))
-        
-                    dframe.to_csv(proj_path + '/{}_data/{}.csv'.format(portfolio, s), index_label="Date")
-                    symbols.append(s)
-                except Exception:
-                    print 'unable to download data for symbol: {}'.format(s)                  
-            else:
-                symbols.append(s)                            
-        #Add SPY for test base
+    symbols_loaded = list()
+    if 'SPY' not in symbols:
+        symbols.insert(0,'SPY')           
+    for s in symbols: 
+        print 'searching file {}.csv'.format(s)                              
+        if os.path.isfile(proj_path + '/data/{}.csv'.format(s)) is False:
+            print proj_path + '/data/{}.csv'.format(s)
+            try:                    
+                print 'Downloading data from Yahoo for symbos {}'.format(s)                     
+                dframe = web.DataReader(name=s, data_source='yahoo', start=start_date, end=end_date)                    
+                print 'writing to file %s symbol' %s
+#                    if os.path.isdir(proj_path + '/{}_data'.format(portfolio)) is False:
+#                        os.mkdir(proj_path + '/{}_data'.format(portfolio))
+    
+                dframe.to_csv(proj_path + '/data/{}.csv'.format(s), index_label="Date")
+                symbols_loaded.append(s)
+            except Exception:
+                print 'unable to download data for symbol: {}'.format(s)                  
+        else:
+            symbols_loaded.append(s)                            
+    #Add SPY for test base
     
     print 'Finished downloading data\n'  
     
-    return symbols   
+    return symbols_loaded   
     
 def symbol_to_path(symbol, base_dir= proj_path + '/data/'):
     """Return CSV file path given ticker symbol."""    
@@ -113,13 +117,16 @@ def get_data(symbols, dates):
 
     for symbol in symbols:
         # TODO: Read and join data for each symbol
-        df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date', 
-            parse_dates = True, usecols=['Date', 'Adj Close'], na_values=['nan'])
-        df_temp = df_temp.rename(columns = {'Adj Close': symbol})
-        df = df.join(df_temp)
-        if symbol == 'SPY': #drop dates SPY did not trade
-            df = df.dropna(subset=["SPY"])
-
+        if os.path.isfile(symbol_to_path(symbol)):
+            df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date', 
+                parse_dates = True, usecols=['Date', 'Adj Close'], na_values=['nan'])
+            df_temp = df_temp.rename(columns = {'Adj Close': symbol})
+            df = df.join(df_temp)
+            if symbol == 'SPY': #drop dates SPY did not trade
+                df = df.dropna(subset=["SPY"])
+        else:
+            download(symbol)                
+                    
     return df
 #def get_data(symbols, dates, base_dir):
 #    """Read stock data (adjusted close) for given symbols from CSV files."""
@@ -163,11 +170,15 @@ if __name__ == "__main__":
 #==============================================================================
 #          Portfolio Optimization
 #==============================================================================
-    start_date = datetime.datetime(2014, 4, 5)
-    end_date = datetime.datetime(2015, 6, 2)   
+    start_date = datetime.datetime(2005, 01, 01)
+    end_date = datetime.datetime(2017, 01, 01)   
     dates = pd.date_range(start_date, end_date)           
-#    symbols = ['SPY', 'AAPL', 'IBM', 'LEE']    
-    symbols  = download_hist_data('buffett', start_date, end_date )
+#    symbols = ['SPY', 'AAPL', 'IBM', 'LEE']  
+    
+    
+    stocks = load_symbols('buffett_port_syms.pickle' )
+    
+    symbols  = download_hist_data(stocks, start_date, end_date )
     print symbols
     noa = len(symbols)     
      
@@ -202,7 +213,7 @@ if __name__ == "__main__":
     pvols = list()
     sub_opt_weight = 0
     W = list()
-    for p in range (450):
+    for p in range (40):
         weights = np.random.random(noa)
         weights /= np.sum(weights)
         exp_return = np.sum(rets.mean() * weights) * 252
@@ -213,7 +224,10 @@ if __name__ == "__main__":
             W.append((exp_return/exp_volat, weights, exp_return, exp_volat))
             
                         
-    print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(W)[0], max(W)[2], max(W)[3])
+    try:
+        print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(W)[0], max(W)[2], max(W)[3])
+    except Exception:
+        pass
                                      
     prets = np.array(prets)
     pvols = np.array(pvols)    

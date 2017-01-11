@@ -9,14 +9,13 @@ import pandas_datareader.data as web
 import pickle
 import os
 
-start_date = '2010-01-01'
-end_date = '2016-01-01'
 
 
-symbol = 'GOOG'
-dframe = web.DataReader(name=symbol, data_source='yahoo', start=start_date, end=end_date)
-dframe.to_csv("./data/{}.csv".format(symbol), index_label="Date")
-path = '/home/rcortez/projects/machineLearningTrading/data'
+
+#symbol = 'GOOG'
+#dframe = web.DataReader(name=symbol, data_source='yahoo', start=start_date, end=end_date)
+#dframe.to_csv("./data/{}.csv".format(symbol), index_label="Date")
+path = '/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup/data'
 
 
 import urllib2
@@ -54,30 +53,19 @@ def scrape_list(site):
 def download_hist_data(sector_tickers, start_date, end_date):
 #    sector_hist_data = {}
     for sector, symbol in sector_tickers.iteritems():
-        print 'Downloading data from Yahoo for %s sector' % sector
-        for root, dirs, files in os.walk("."):
-            print dirs        
-#        for s in symbol:            
-#            try:
-#                dframe = web.DataReader(name=s, data_source='yahoo', start=start_date, end=end_date)
-#                print 'writing to file %s symbol' %s
+        print 'Downloading data from Yahoo for sector: %s ' % sector
+        for s in symbol:            
+            try:
+                dframe = web.DataReader(name=s, data_source='yahoo', start=start_date, end=end_date)
+                dframe.to_csv(path + '/{}.csv'.format(s), index_label="Date")                                
+                print 'writing to file %s symbol' %s
 #                if os.path.isdir(path + '/{}'.format(sector)):
-#                    dframe.to_csv(path + '/{}.csv'.format(s), index_label="Date")                
+#                    dframe.to_csv(path + '/{}/{}.csv'.format(sector,s), index_label="Date")                
 #                else:
 #                    os.mkdir(path + '/{}'.format(sector))
-#                    dframe.to_csv(path + '/{}.csv'.format(s), index_label="Date")
-#            except Exception:
-#                pass
-            #Add SPY for test base
-    dframe = web.DataReader(name='GLD', data_source='yahoo', start=start_date, end=end_date)
-    dframe.to_csv(path + '/GLD.csv', index_label = "Date")
-                
- 
-
-#        data = DataReader(symbol, 'yahoo', start_date, end_date)
-#        dframe = web.DataReader(name=symbol, data_source='yahoo', start=start_date, end=end_date)
-#        dframe.to_csv("./data/{}.csv".format(symbol), index_label="Date")
-#        sector_hist_data[sector] = dframe
+#                    dframe.to_csv(path + '/{}/{}.csv'.format(sector,s), index_label="Date")
+            except Exception:
+                pass
     print 'Finished downloading data'
 #    return sector_hist_data
 #
@@ -109,6 +97,8 @@ def load_obj(name ):
 
 if __name__ == '__main__':
     get_snp500()
+    start_date = '2005-01-01'
+    end_date = '2017-01-01'    
 #    sectors_list = load_obj('sector_symbol_list')
 #    for sector in sectors_list.keys():
 #        newPath = path + '/' + sector
