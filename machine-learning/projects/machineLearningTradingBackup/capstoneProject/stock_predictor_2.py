@@ -109,7 +109,7 @@ def fit_model(X,y, model, cv_sets):
         params = {'max_depth':[2,3, 4, 5, 7, 8, 20], 'min_samples_split' : [2, 8, 16, 32]}
     elif model == 'SVR':
         regressor = SVR() 
-        params = { 'C':[1e3, 5e3, 1e-3, 1e-6],'gamma': [0.0001, 0.1, 1, 1e3], 'kernel': ['linear']}                 
+        params = { 'C':[1e-3],'gamma': [0.0001], 'kernel': ['linear']}                 
     elif model == 'AdaBoost':
         regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 50, random_state = None) 
         params = {}
@@ -183,23 +183,27 @@ def plot_results(predictions, target):
     t = np.arange(0, target.shape[0])
     plt.plot(t, predictions, 'r', t, target, 'b')
     plt.show()    
-                         
+                        
+def back_test(model, predictions, target):            
+    print_results(model, predictions, target)
+    plot_results(predictions, target)                        
                         
 if __name__ == "__main__":
     days_back = 14
-    dates = pd.date_range('2013-01-01', '2014-01-01')  
+    dates = pd.date_range('2007-01-01', '2014-01-01')  
 
 #    feats = ['_adcls']
 #    symbols = ['SPY', 'XOM', 'WYNN']    
     symbols = ['SPY']    
     test_sz = 0.2
     train_sz = (1 - test_sz)
-    n_folds = 1
+    n_folds = 5
     n_lookup = 7
 
     
     df1 = get_data(symbols, dates) 
     df = df1.ix[days_back - 1:,: ]
+    
     print 'df.shape[0]: {}, dates: {}'.format(df.shape[0], dates)    
     #   length of training data set to 90%
     #   remaining 10% is for final testing    
@@ -219,10 +223,10 @@ if __name__ == "__main__":
         sp20_train, sp20_test = get_train_test_sets(sp20, 0.9)
         X_train = sp20_train.ix [ : , : -1] # use previous closing prices as features
         y_train = sp20_train.ix[ :,  -1] # use last column, adjcls, as a target
+        y_true = sp20_test.ix[:, -1] 
         
 #        models = [ 'DTR', 'AdaBoost', 'SVR']
-        models = [ 'SVR']        
-        
+        models = [ 'SVR']                
         for m in models:
             print type(X_train), type(y_train)
             num_elem_train, num_elem_test, cv_sets = fit_model_inputs(sp20_train.shape[0], 
@@ -232,8 +236,5 @@ if __name__ == "__main__":
             reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
              # Produce the value for 'max_depth'
             print "Params for model {} are {}".format(m, reg.get_params())           
-            y_predict = reg.predict(sp20_test.ix[n_lookup:, : -1]) #n_lookup is to shift data so that dates matches w/ previous algo            
-            y_true = sp20_test.ix[n_lookup:, -1] #n_lookup is to shift data so that dates matches w/ previous algo        
-            print y_predict - y_true            
-            print_results(m, y_predict, y_true)
-            plot_results(y_predict, y_true)
+            y_predict = reg.predict(sp20_test.ix[:, : -1]) 
+            back_test(m, y_predict, y_true)            

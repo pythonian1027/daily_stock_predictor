@@ -125,7 +125,7 @@ def get_data(symbols, dates):
             if symbol == 'SPY': #drop dates SPY did not trade
                 df = df.dropna(subset=["SPY"])
         else:
-            download(symbol)                
+            download_symbol(symbol)                
                     
     return df
 #def get_data(symbols, dates, base_dir):
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 #==============================================================================
 #          Portfolio Optimization
 #==============================================================================
-    start_date = datetime.datetime(2005, 01, 01)
+    start_date = datetime.datetime(2012, 01, 01)
     end_date = datetime.datetime(2017, 01, 01)   
     dates = pd.date_range(start_date, end_date)           
 #    symbols = ['SPY', 'AAPL', 'IBM', 'LEE']  
@@ -179,8 +179,8 @@ if __name__ == "__main__":
     stocks = load_symbols('buffett_port_syms.pickle' )
     
     symbols  = download_hist_data(stocks, start_date, end_date )
-    print symbols
-    noa = len(symbols)     
+#    print symbols
+#    noa = len(symbols)     
      
     
 #    for sym in symbols:
@@ -188,6 +188,9 @@ if __name__ == "__main__":
 #                                        end='2014-09-12')['Adj Close']
 #    data.columns = symbols
     data = get_data(symbols, dates)
+    data = data.dropna(axis = 1)
+    symbols = data.columns #update columns after dropna
+    noa = len(symbols)
 
 #    (data / data.ix[0] * 100).plot(figsize=(8, 5))     
     rets = np.log(data / data.shift(1))   
@@ -213,31 +216,40 @@ if __name__ == "__main__":
     pvols = list()
     sub_opt_weight = 0
     W = list()
-    for p in range (40):
+    for p in range (500):
         weights = np.random.random(noa)
         weights /= np.sum(weights)
         exp_return = np.sum(rets.mean() * weights) * 252
         exp_volat = np.sqrt(np.dot(weights.T, np.dot(rets.cov() * 252, weights)))
         prets.append(exp_return)
         pvols.append(exp_volat)
-        if exp_return > 0.17 and exp_volat < 0.111:
+        if exp_return > 0.15 and exp_volat < 0.13:
             W.append((exp_return/exp_volat, weights, exp_return, exp_volat))
-            
-                        
-    try:
-        print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(W)[0], max(W)[2], max(W)[3])
-    except Exception:
-        pass
-                                     
-    prets = np.array(prets)
+#            print W
+                
+    prets = np.array(prets)       
     pvols = np.array(pvols)    
-    
+
     plt.figure(figsize=(8, 4))
     plt.scatter(pvols, prets, c=prets / pvols, marker='o')
+    try:        
+        print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(W)[0], max(W)[2], max(W)[3])
+        print max(W)
+        plt.plot(max(W)[3], max(W)[2], 'r*', markersize=15.0)
+        plt.annotate('SR={}'.format(round(max(W)[0],2)), (max(W)[3]-0.005, max(W)[2]+0.005))
+    except Exception:
+        pass                
     plt.grid(True)
     plt.xlabel('expected volatility')
     plt.ylabel('expected return')
+    prets_ticks = np.arange(0.12, 0.21, 0.01)
+    pvols_ticks = np.arange(0.12, 0.16, 0.005)
+    bnds = np.array([prets_ticks[0], prets_ticks[-1]])/(np.array([pvols_ticks[0], pvols_ticks[-1]]))
+    plt.xticks(pvols_ticks)
+    plt.yticks(prets_ticks)
     plt.colorbar(label='Sharpe ratio')    
+#    plt.colorbar(label='Sharpe ratio', boundaries = bnds)    
+    print plt.gca()
 
 #%% 
 ##    symbols = load_symbols(ptf_fnames['buffett'])

@@ -12,8 +12,8 @@ import scipy.stats as scs
 import statsmodels.api as sm
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from portfolio_gen import download_hist_data, load_symbols
-from portfolio_gen import get_data_all, get_data
+from portfolio_gen import download_hist_data, download_symbol, load_symbols
+from portfolio_gen import get_data_all, get_data, symbol_to_path
 import datetime
 import os
 #%matplotlib inline
@@ -165,7 +165,7 @@ if __name__ == "__main__":
     import pandas.io.data as web
     
     symbols = ['SPY', 'AAPL', 'IBM', 'LEE']
-    start_date = datetime.datetime(2010, 4, 5)
+    start_date = datetime.datetime(2013, 4, 5)
     end_date = datetime.datetime(2015, 6, 2) 
     dates = pd.date_range(start_date, end_date)  
 #    symbols = download_hist_data('buffett', start_date, end_date )
@@ -529,7 +529,7 @@ if __name__ == "__main__":
     cx = np.linspace(0.0, 0.3)
     plt.plot(cx, opt[0] + opt[1] * cx, lw=1.5)
                 # capital market line
-    plt.plot(opt[2], f(opt[2]), 'r*', markersize=15.0)
+    plt.plot(opt[2], f(opt[2]), 'b*', markersize=15.0)
     plt.grid(True)
     plt.axhline(0, color='k', ls='--', lw=2.0)
     plt.axvline(0, color='k', ls='--', lw=2.0)
@@ -610,10 +610,15 @@ if __name__ == "__main__":
 #    data = data.dropna()
 
 #==============================================================================
-    symbols = download_hist_data('buffett', start_date, end_date )
-    
+    stocks = load_symbols('buffett_port_syms.pickle' )    
+    symbols  = download_hist_data(stocks, start_date, end_date )
+#    symbols = download_hist_data('buffett', start_date, end_date )
+    start_date = datetime.datetime(2014, 4, 5)
+    end_date = datetime.datetime(2015, 6, 2) 
+    dates = pd.date_range(start_date, end_date)
     data = get_data(symbols, dates)
-    data = data.dropna()
+    
+    data = data.dropna(axis = 1) #eliminates el entire column when it finds a nan
 #==============================================================================
 
 #CPU times: user 408 ms, sys: 68 ms, total: 476 ms
@@ -663,7 +668,7 @@ if __name__ == "__main__":
 #Next, we use PCA to construct a PCA (or factor) index over time and compare it with the original index. First, we have a PCA index with a single component only:
 
     pca = KernelPCA(n_components=1).fit(data.apply(scale_function))
-    dax['PCA_1'] = pca.transform(-data)
+    dax['PCA_1'] = pca.transform(data)
 
 #Figure 11-15 shows the results for normalized data—already not too bad, given the rather simple application of the approach:
 
@@ -677,7 +682,7 @@ if __name__ == "__main__":
 #Let us see if we can improve the results by adding more components. To this end, we need to calculate a weighted average from the single resulting components:
 
     pca = KernelPCA(n_components=5).fit(data.apply(scale_function))
-    pca_components = pca.transform(-data)
+    pca_components = pca.transform(data)
     weights = get_we(pca.lambdas_)
     dax['PCA_5'] = np.dot(pca_components, weights)
 
@@ -1204,4 +1209,4 @@ if __name__ == "__main__":
 #[46] Cf. http://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo. For example, the Monte Carlo algorithms used throughout the book and analyzed in detail in Chapter 10 all generate so-called Markov chains, since the immediate next step/value only depends on the current state of the process and not on any other historic state or value.
 #
 #[47] Note also here that we are working with absolute price levels and not return data, which would be statistically more sound. For a real-world (trading) application, you would rather choose the return data to implement such an analysis.
-#                           
+#                                
