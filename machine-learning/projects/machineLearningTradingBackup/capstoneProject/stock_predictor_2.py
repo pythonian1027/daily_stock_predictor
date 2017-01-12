@@ -189,52 +189,41 @@ def back_test(model, predictions, target):
     plot_results(predictions, target)                        
                         
 if __name__ == "__main__":
-    days_back = 14
-    dates = pd.date_range('2007-01-01', '2014-01-01')  
-
-#    feats = ['_adcls']
-#    symbols = ['SPY', 'XOM', 'WYNN']    
-    symbols = ['SPY']    
+    days_back = 50
+    dates = pd.date_range('2011-01-01', '2017-01-01')  
+    symbols = ['SPY', 'XOM', 'WYNN']    
     test_sz = 0.2
     train_sz = (1 - test_sz)
-    n_folds = 5
-    n_lookup = 7
+    n_folds = 3
+    n_lookup = 1
 
-    
-    df1 = get_data(symbols, dates) 
-    df = df1.ix[days_back - 1:,: ]
-    
-    print 'df.shape[0]: {}, dates: {}'.format(df.shape[0], dates)    
-    #   length of training data set to 90%
-    #   remaining 10% is for final testing    
-    df_train, df_test = get_train_test_sets(df, 0.9)    
-
-    
-    
-   
+    df = get_data(symbols, dates)     
+       
     for s in symbols:       
-        sp = df1.ix[:,[s]]    
+        frame = df.ix[:,[s]]    
+        #create columns for previous closing days
         for i in range(n_lookup, days_back + n_lookup, 1):
-            sp.loc[:,'Close Minus ' + str(i)] = sp[s].shift(i)
+            frame.loc[:,'Close Minus ' + str(i)] = frame[s].shift(i)
         
-        sp20 = sp[[x for x in sp.columns if 'Close Minus' in x or x == s]].iloc[days_back + n_lookup - 1:,]
-        sp20 = sp20.iloc[:,::-1]
+        #removed the rows affected by shifting (nan's)
+        frame_db = frame[[x for x in frame.columns if 'Close Minus' in x or x == s]].iloc[days_back + n_lookup - 1:,]
+        #reverse the order of the colunms
+        frame_db = frame_db.iloc[:,::-1]
         
-        sp20_train, sp20_test = get_train_test_sets(sp20, 0.9)
-        X_train = sp20_train.ix [ : , : -1] # use previous closing prices as features
-        y_train = sp20_train.ix[ :,  -1] # use last column, adjcls, as a target
-        y_true = sp20_test.ix[:, -1] 
+        frame_db_train, frame_db_test = get_train_test_sets(frame_db, 0.9)
+        X_train = frame_db_train.ix [ : , : -1] # use previous closing prices as features
+        y_train = frame_db_train.ix[ :,  -1] # use last column, adjcls, as a target
+        y_true = frame_db_test.ix[:, -1] 
         
 #        models = [ 'DTR', 'AdaBoost', 'SVR']
         models = [ 'SVR']                
         for m in models:
             print type(X_train), type(y_train)
-            num_elem_train, num_elem_test, cv_sets = fit_model_inputs(sp20_train.shape[0], 
+            num_elem_train, num_elem_test, cv_sets = fit_model_inputs(frame_db_train.shape[0], 
                                                                       n_lookup, 
                                                                       n_folds, test_sz, train_sz)
-        
-            reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data
-             # Produce the value for 'max_depth'
+            print cv_sets                                                                      
+            reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data            
             print "Params for model {} are {}".format(m, reg.get_params())           
-            y_predict = reg.predict(sp20_test.ix[:, : -1]) 
+            y_predict = reg.predict(frame_db_test.ix[:, : -1]) 
             back_test(m, y_predict, y_true)            
