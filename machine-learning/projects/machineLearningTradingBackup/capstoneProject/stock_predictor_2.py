@@ -188,10 +188,21 @@ def back_test(model, predictions, target):
     print_results(model, predictions, target)
     plot_results(predictions, target)                        
                         
+def get_signal(k):
+    if k['Predicted'] > k['Close Minus 1']:
+        return 1
+    else:
+        return 0
+def get_return(k):
+    if k['signal'] == 1:
+        return (k[s] - k['Close Minus 1'])/k['Close Minus 1']           
+    else: 
+        return 0                                      
+                                                
 if __name__ == "__main__":
     days_back = 50
     dates = pd.date_range('2011-01-01', '2017-01-01')  
-    symbols = ['SPY', 'XOM', 'WYNN']    
+    symbols = ['WYNN']    
     test_sz = 0.2
     train_sz = (1 - test_sz)
     n_folds = 3
@@ -213,7 +224,8 @@ if __name__ == "__main__":
         frame_db_train, frame_db_test = get_train_test_sets(frame_db, 0.9)
         X_train = frame_db_train.ix [ : , : -1] # use previous closing prices as features
         y_train = frame_db_train.ix[ :,  -1] # use last column, adjcls, as a target
-        y_true = frame_db_test.ix[:, -1] 
+        X_test  = frame_db_test.ix[:, : -1]
+        y_target = frame_db_test.ix[:, -1] 
         
 #        models = [ 'DTR', 'AdaBoost', 'SVR']
         models = [ 'SVR']                
@@ -222,8 +234,23 @@ if __name__ == "__main__":
             num_elem_train, num_elem_test, cv_sets = fit_model_inputs(frame_db_train.shape[0], 
                                                                       n_lookup, 
                                                                       n_folds, test_sz, train_sz)
-            print cv_sets                                                                      
+#           Fit Model                                                                     
             reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data            
             print "Params for model {} are {}".format(m, reg.get_params())           
-            y_predict = reg.predict(frame_db_test.ix[:, : -1]) 
-            back_test(m, y_predict, y_true)            
+            
+#           Predict prices            
+            y_predict = reg.predict(X_test)         
+            
+#           Backtest results            
+            back_test(m, y_predict, y_target)            
+            
+            outputs = frame_db_test.ix[:, -2:]
+            dframe_pred = pd.DataFrame({'Predicted':y_predict}, index= outputs.index)
+            outputs = outputs.join(dframe_pred)            
+            outputs = outputs.assign(signal = outputs.apply(get_signal, axis = 1))
+            outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
+            (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus 1']).sum()
+            print outputs
+#            results = pd.DataFrame(list(zip(close_minus_1,  y_predict)), columns=['Close Minus 1', 'Close', 'Predicted Close'], index=y_target.index)
+#            print results
+#            
