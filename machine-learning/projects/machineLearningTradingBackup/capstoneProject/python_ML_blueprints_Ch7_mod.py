@@ -6,9 +6,8 @@ import os.path
 cwd = os.getcwd()
 print cwd
 os.chdir('../')
-cwd = os.getcwd()
-#project_path = '/home/rcortez/Projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
-project_path ='/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup' 
+
+project_path = os.getcwd()
 #path = '/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup'
 #path = os.path.abspath(os.path.join(cwd, os.pardir))
 #print path
@@ -66,7 +65,7 @@ def get_stats(s, n=252):
 if __name__ == "__main__":
     
 #    dates = pd.date_range('2013-04-01', '2014-03-01')
-    dates = pd.date_range('2008-01-01', '2014-04-01')  
+    dates = pd.date_range('2014-01-21', '2014-04-01')  
     spy = get_data(['SPY'],dates )
     print 'len SPY: {}'.format(spy.shape)
     plot_data(spy['Close'])
@@ -106,10 +105,11 @@ if __name__ == "__main__":
 #    for i in range(1000):
 #        spy['Signal_' + str(i)] = spy.apply(get_signal, axis=1) 
     
-# Support Vector Regressor
+#%% Support Vector Regressor
+    
     sp = spy
     print sp.shape
-    lookup_days = 3
+    lookup_days = 1
     tot_days_back = 3
     for i in range(lookup_days, tot_days_back, 1):
         sp.loc[:,'Close Minus ' + str(i)] = sp['Close'].shift(i)

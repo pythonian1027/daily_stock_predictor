@@ -200,12 +200,12 @@ def get_return(k):
         return 0                                      
                                                 
 if __name__ == "__main__":
-    days_back = 50
+    days_back = 100
     dates = pd.date_range('2011-01-01', '2017-01-01')  
-    symbols = ['WYNN']    
+    symbols = ['WYNN', 'SPY']    
     test_sz = 0.2
     train_sz = (1 - test_sz)
-    n_folds = 3
+    n_folds = 10
     n_lookup = 1
 
     df = get_data(symbols, dates)     
@@ -249,8 +249,36 @@ if __name__ == "__main__":
             outputs = outputs.join(dframe_pred)            
             outputs = outputs.assign(signal = outputs.apply(get_signal, axis = 1))
             outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
-            (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus 1']).sum()
-            print outputs
+#            print outputs
+            print (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus 1']).sum()
+            
 #            results = pd.DataFrame(list(zip(close_minus_1,  y_predict)), columns=['Close Minus 1', 'Close', 'Predicted Close'], index=y_target.index)
 #            print results
 #            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+#WYNN
+#Params for model SVR are {'kernel': 'linear', 'C': 1, 'verbose': False, 'degree': 3, 'epsilon': 0.1, 'shrinking': True, 'max_iter': -1, 'tol': 0.001, 'cache_size': 200, 'coef0': 0.0, 'gamma': 0.0001}
+#SVR : MSE = 7.70260175941
+#Avg. Percentage Error -0.29066499597
+#Explained Variance Score = 0.737236365318
+#-14.848718
+#
+#
+#
+#SPY
+#<class 'pandas.core.frame.DataFrame'> <class 'pandas.core.series.Series'>
+#Params for model SVR are {'kernel': 'linear', 'C': 0.001, 'verbose': False, 'degree': 3, 'epsilon': 0.1, 'shrinking': True, 'max_iter': -1, 'tol': 0.001, 'cache_size': 200, 'coef0': 0.0, 'gamma': 0.0001}
+#SVR : MSE = 2.31500270263
+#Avg. Percentage Error -0.0283733557465
+#Explained Variance Score = 0.925574538209
+#19.712812
