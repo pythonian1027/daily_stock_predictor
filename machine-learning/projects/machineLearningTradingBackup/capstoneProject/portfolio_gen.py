@@ -39,7 +39,7 @@ proj_path = os.getcwd()
       
 
 def load_symbols(filename):
-    with open(filename, 'rb') as handle:
+    with open(proj_path + '/' + filename, 'rb') as handle:
         symbols = pickle.load(handle)
     return symbols        
 

@@ -13,13 +13,14 @@ from sklearn.tree import  DecisionTreeRegressor
 from sklearn.metrics import mean_squared_error, explained_variance_score
 from sklearn.metrics import r2_score
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
-from portfolio_gen import get_data
+from portfolio_gen import get_data, load_symbols, download_hist_data
 
 from sklearn.svm import SVR
 import numpy as np
 import math
 
 import os
+import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys, traceback
@@ -109,7 +110,7 @@ def fit_model(X,y, model, cv_sets):
         params = {'max_depth':[2,3, 4, 5, 7, 8, 20], 'min_samples_split' : [2, 8, 16, 32]}
     elif model == 'SVR':
         regressor = SVR() 
-        params = { 'C':[1e-3],'gamma': [0.0001], 'kernel': ['linear']}                 
+        params = { 'C':[1e-3],'gamma': [1e-4], 'kernel': ['linear']}                 
     elif model == 'AdaBoost':
         regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 50, random_state = None) 
         params = {}
@@ -189,26 +190,34 @@ def back_test(model, predictions, target):
     plot_results(predictions, target)                        
                         
 def get_signal(k):
-    if k['Predicted'] > k['Close Minus 1']:
+    if k['Predicted'] > k['Close Minus {}'.format(n_lookup)]:
         return 1
     else:
         return 0
 def get_return(k):
     if k['signal'] == 1:
-        return (k[s] - k['Close Minus 1'])/k['Close Minus 1']           
+        return (k[s] - k['Close Minus {}'.format(n_lookup)])/k['Close Minus {}'.format(n_lookup)]           
     else: 
         return 0                                      
                                                 
 if __name__ == "__main__":
     days_back = 100
-    dates = pd.date_range('2011-01-01', '2017-01-01')  
-    symbols = ['WYNN', 'SPY']    
+    start_date = datetime.datetime(2011,01,01)
+    end_date = datetime.datetime(2017,01,01)
+    dates = pd.date_range(start_date, end_date)  
+
     test_sz = 0.2
     train_sz = (1 - test_sz)
     n_folds = 10
-    n_lookup = 1
+    n_lookup = 7
 
-    df = get_data(symbols, dates)     
+    stocks = load_symbols('buffett_port_syms.pickle' )    
+    symbols  = download_hist_data(stocks, start_date, end_date )
+#    symbols = ['WYNN']    
+    
+    df = get_data(symbols, dates)  
+    data = df.dropna(axis = 1) #get rid of symbols with missing data
+    symbols = data.columns #update columns after dropna    
        
     for s in symbols:       
         frame = df.ix[:,[s]]    
@@ -231,6 +240,7 @@ if __name__ == "__main__":
         models = [ 'SVR']                
         for m in models:
             print type(X_train), type(y_train)
+#           Generate Cross-Validation sets for GridSearchCV
             num_elem_train, num_elem_test, cv_sets = fit_model_inputs(frame_db_train.shape[0], 
                                                                       n_lookup, 
                                                                       n_folds, test_sz, train_sz)
@@ -249,8 +259,9 @@ if __name__ == "__main__":
             outputs = outputs.join(dframe_pred)            
             outputs = outputs.assign(signal = outputs.apply(get_signal, axis = 1))
             outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
-#            print outputs
-            print (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus 1']).sum()
+            print outputs
+            print (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus {}'.format(n_lookup)]).sum()
+            print outputs['rets'].sum()
             
 #            results = pd.DataFrame(list(zip(close_minus_1,  y_predict)), columns=['Close Minus 1', 'Close', 'Predicted Close'], index=y_target.index)
 #            print results
