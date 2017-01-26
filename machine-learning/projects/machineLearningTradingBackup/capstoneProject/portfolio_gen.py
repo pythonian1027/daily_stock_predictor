@@ -117,7 +117,7 @@ def get_data(symbols, dates):
 
     for symbol in symbols:
         # TODO: Read and join data for each symbol
-        if os.path.isfile(symbol_to_path(symbol)):
+        if os.path.isfile(symbol_to_path(symbol)):            
             df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date', 
                 parse_dates = True, usecols=['Date', 'Adj Close'], na_values=['nan'])
             df_temp = df_temp.rename(columns = {'Adj Close': symbol})
@@ -125,8 +125,7 @@ def get_data(symbols, dates):
             if symbol == 'SPY': #drop dates SPY did not trade
                 df = df.dropna(subset=["SPY"])
         else:
-            download_symbol(symbol)                
-                    
+            download_symbol(symbol)                        
     return df
 #def get_data(symbols, dates, base_dir):
 #    """Read stock data (adjusted close) for given symbols from CSV files."""
@@ -179,7 +178,7 @@ if __name__ == "__main__":
     stocks = load_symbols('buffett_port_syms.pickle' )
     
     symbols  = download_hist_data(stocks, start_date, end_date )
-#    print symbols
+    print symbols
 #    noa = len(symbols)     
      
     
@@ -187,14 +186,18 @@ if __name__ == "__main__":
 #         data[sym] = web.DataReader(sym, data_source='yahoo',
 #                                        end='2014-09-12')['Adj Close']
 #    data.columns = symbols
+    print 'imhere1'
     data = get_data(symbols, dates)
+    print 'imhere2'
     data = data.dropna(axis = 1)
     symbols = data.columns #update columns after dropna
     noa = len(symbols)
-
+    
 #    (data / data.ix[0] * 100).plot(figsize=(8, 5))     
     rets = np.log(data / data.shift(1))   
+    print 'imhere3'
     rets.mean() * 252       #anualize
+    
     rets.cov() * 252    
     
 #==============================================================================
@@ -213,9 +216,10 @@ if __name__ == "__main__":
     # expected portfolio standard deviation/volatility    
     
     prets = list()
-    pvols = list()
-    sub_opt_weight = 0
-    W = list()
+    pvols = list()    
+    #list containing a tuple of sharpe, weights, returns and std
+    srwrs = list()
+    
     for p in range (500):
         weights = np.random.random(noa)
         weights /= np.sum(weights)
@@ -224,7 +228,7 @@ if __name__ == "__main__":
         prets.append(exp_return)
         pvols.append(exp_volat)
         if exp_return > 0.15 and exp_volat < 0.13:
-            W.append((exp_return/exp_volat, weights, exp_return, exp_volat))
+            srwrs.append((exp_return/exp_volat, weights, exp_return, exp_volat))
 #            print W
                 
     prets = np.array(prets)       
@@ -233,10 +237,10 @@ if __name__ == "__main__":
     plt.figure(figsize=(8, 4))
     plt.scatter(pvols, prets, c=prets / pvols, marker='o')
     try:        
-        print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(W)[0], max(W)[2], max(W)[3])
-        print max(W)
-        plt.plot(max(W)[3], max(W)[2], 'r*', markersize=15.0)
-        plt.annotate('SR={}'.format(round(max(W)[0],2)), (max(W)[3]-0.005, max(W)[2]+0.005))
+        print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(srwrs)[0], max(srwrs)[2], max(srwrs)[3])
+        print max(srwrs)
+        plt.plot(max(srwrs)[3], max(srwrs)[2], 'r*', markersize=15.0)
+        plt.annotate('SR={}'.format(round(max(srwrs)[0],2)), (max(srwrs)[3]-0.005, max(srwrs)[2]+0.005))
     except Exception:
         pass                
     plt.grid(True)

@@ -11,9 +11,10 @@ from sklearn.metrics import r2_score, make_scorer, fbeta_score
 from sklearn.grid_search import GridSearchCV
 from sklearn.tree import  DecisionTreeRegressor
 from sklearn.metrics import mean_squared_error, explained_variance_score
-from sklearn.metrics import r2_score
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
-from portfolio_gen import get_data, load_symbols, download_hist_data
+from portfolio_theory import get_weights
+from portfolio_gen import  get_data, load_symbols, download_hist_data
+
 
 from sklearn.svm import SVR
 import numpy as np
@@ -83,11 +84,7 @@ def plot_feature_importances(feature_importances, title, feature_names):
     plt.ylabel('Relative Importance')
     plt.title(title)
     plt.show()
-
-def rsquare_performance(real_data, pred_data):        
-    return r2_score(real_data, pred_data)
     
-
 def get_partition(n_elem_train, n_elem_test):
     idxs_train = np.arange(n_elem_train)        
     idxs_test = np.arange(idxs_train[-1] + 1, n_elem_train + n_elem_test, 1)        
@@ -115,7 +112,7 @@ def fit_model(X,y, model, cv_sets):
         regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 50, random_state = None) 
         params = {}
         
-    scoring_fnc = make_scorer(performance_metric_mse, greater_is_better = False)                              
+    scoring_fnc = make_scorer(performance_metric_r2, greater_is_better = True)                              
     grid = GridSearchCV(regressor, params, scoring_fnc, cv = cv_sets)    
     grid = grid.fit(X,y)        
     return grid.best_estimator_    
@@ -174,7 +171,7 @@ def fit_model_inputs(train_size, n_lookup, n_folds, test_sz, train_sz):
     return numel_train, numel_test, cvsets   
 
 def print_results(mod, predictions, target):
-    print '{} : MSE = {}'.format(mod, mean_squared_error(predictions, target))
+    print '{} : R2 = {}'.format(mod, r2_score(predictions, target))
     result = 100*np.mean((target.values - predictions)/target.values)
     print 'Avg. Percentage Error {}'.format(result)
     evs = explained_variance_score(target, predictions)
@@ -185,13 +182,29 @@ def plot_results(predictions, target):
     plt.plot(t, predictions, 'r', t, target, 'b')
     plt.show()    
                         
-def back_test(model, predictions, target):            
+def back_test(model, predictions, target, df_test):            
     print_results(model, predictions, target)
-    plot_results(predictions, target)                        
+#    plot_results(predictions, target)        
+    
+    #creating a dataframe of previous closing price, actual price, predicted and signal
+    outputs = df_test.ix[:, -2:]
+    dframe_pred = pd.DataFrame({'Predicted':y_predict}, index= outputs.index)
+    outputs = outputs.join(dframe_pred)            
+    outputs = outputs.assign(signal = outputs.apply(get_signal, axis = 1))
+    outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
+#    print outputs
+    
+    profit =  (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus {}'.format(n_lookup)]).sum()
+    profit = profit/outputs.shape[0]    
+    r2score = performance_metric_r2(target, predictions)
+    stock_rets =  outputs['rets'].sum()             
+    return profit, r2score, stock_rets
                         
 def get_signal(k):
     if k['Predicted'] > k['Close Minus {}'.format(n_lookup)]:
         return 1
+    elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)]:
+        return -1        
     else:
         return 0
 def get_return(k):
@@ -209,7 +222,7 @@ if __name__ == "__main__":
     test_sz = 0.2
     train_sz = (1 - test_sz)
     n_folds = 10
-    n_lookup = 7
+    n_lookup = 1
 
     stocks = load_symbols('buffett_port_syms.pickle' )    
     symbols  = download_hist_data(stocks, start_date, end_date )
@@ -217,8 +230,14 @@ if __name__ == "__main__":
     
     df = get_data(symbols, dates)  
     data = df.dropna(axis = 1) #get rid of symbols with missing data
+    data = data.ix[:, :-30]  #for speedy tests, remove it
     symbols = data.columns #update columns after dropna    
-       
+    weights = get_weights(data)
+    weights = weights[1]
+    print weights
+    
+    portfolio_profits = list()    
+    portfolio_r2 = list()
     for s in symbols:       
         frame = df.ix[:,[s]]    
         #create columns for previous closing days
@@ -227,17 +246,17 @@ if __name__ == "__main__":
         
         #removed the rows affected by shifting (nan's)
         frame_db = frame[[x for x in frame.columns if 'Close Minus' in x or x == s]].iloc[days_back + n_lookup - 1:,]
-        #reverse the order of the colunms
+        #reverse the order of the colunms from oldest to latest prices
         frame_db = frame_db.iloc[:,::-1]
         
         frame_db_train, frame_db_test = get_train_test_sets(frame_db, 0.9)
         X_train = frame_db_train.ix [ : , : -1] # use previous closing prices as features
-        y_train = frame_db_train.ix[ :,  -1] # use last column, adjcls, as a target
+        y_train = frame_db_train.ix[ :,  [s]] # use last column, adjcls, as a target
         X_test  = frame_db_test.ix[:, : -1]
-        y_target = frame_db_test.ix[:, -1] 
+        y_target = frame_db_test.ix[:, [s]] 
         
 #        models = [ 'DTR', 'AdaBoost', 'SVR']
-        models = [ 'SVR']                
+        models = [ 'SVR']                     
         for m in models:
             print type(X_train), type(y_train)
 #           Generate Cross-Validation sets for GridSearchCV
@@ -245,28 +264,24 @@ if __name__ == "__main__":
                                                                       n_lookup, 
                                                                       n_folds, test_sz, train_sz)
 #           Fit Model                                                                     
-            reg = fit_model(X_train, y_train, m, cv_sets) #takes in training data            
-            print "Params for model {} are {}".format(m, reg.get_params())           
+            reg = fit_model(X_train, np.ravel(y_train), m, cv_sets) #takes in training data            
+#            print "Params for model {} are {}".format(m, reg.get_params())           
             
 #           Predict prices            
             y_predict = reg.predict(X_test)         
             
 #           Backtest results            
-            back_test(m, y_predict, y_target)            
-            
-            outputs = frame_db_test.ix[:, -2:]
-            dframe_pred = pd.DataFrame({'Predicted':y_predict}, index= outputs.index)
-            outputs = outputs.join(dframe_pred)            
-            outputs = outputs.assign(signal = outputs.apply(get_signal, axis = 1))
-            outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
-            print outputs
-            print (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus {}'.format(n_lookup)]).sum()
-            print outputs['rets'].sum()
-            
-#            results = pd.DataFrame(list(zip(close_minus_1,  y_predict)), columns=['Close Minus 1', 'Close', 'Predicted Close'], index=y_target.index)
-#            print results
+            stk_profit, r2score, stk_rets = back_test(m, y_predict, y_target, frame_db_test)            
+            portfolio_profits.append(stk_profit)
+            portfolio_r2.append(r2score)
+                    
+    dataframe = pd.DataFrame([portfolio_profits, portfolio_r2, list(weights)], columns = list(data.columns))    
+    dataframe = dataframe.T
+    dataframe = dataframe.rename(index =str , columns={0:'profits', 1:'R2', 2:'weights'})
+    performance_metric_r2(dataframe.loc[:,['profits']], dataframe.loc[:,'R2'])
+    (dataframe.loc[:,['profits']]).sum()
 #            
-            
+    print dataframe.sort_values(by='profits', ascending = False)                    
             
             
             
