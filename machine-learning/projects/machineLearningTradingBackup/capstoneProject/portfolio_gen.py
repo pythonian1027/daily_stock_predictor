@@ -38,10 +38,24 @@ proj_path = os.getcwd()
 
       
 
-def load_symbols(filename):
-    with open(proj_path + '/' + filename, 'rb') as handle:
+def load_symbols(filename, path=proj_path):    
+    try:
+        handle =  open(path + '/' + filename, 'rb')
+    except: 
+        handle = open(filename)
+                
+    
+    if filename.endswith('.pickle'):       
         symbols = pickle.load(handle)
-    return symbols        
+        return symbols        
+    elif filename.endswith('.txt'):
+        symbols = handle.readline()
+        symbols = symbols.split()
+        return symbols
+    else:
+        print 'File not found'
+        sys.exit()
+    
 
 def download_symbol(s):
     try:
@@ -169,6 +183,7 @@ if __name__ == "__main__":
 #==============================================================================
 #          Portfolio Optimization
 #==============================================================================
+    print proj_path
     start_date = datetime.datetime(2012, 01, 01)
     end_date = datetime.datetime(2017, 01, 01)   
     dates = pd.date_range(start_date, end_date)           
@@ -176,9 +191,10 @@ if __name__ == "__main__":
     
     
     stocks = load_symbols('buffett_port_syms.pickle' )
+    print stocks
     
     symbols  = download_hist_data(stocks, start_date, end_date )
-    print symbols
+    
 #    noa = len(symbols)     
      
     
@@ -186,16 +202,16 @@ if __name__ == "__main__":
 #         data[sym] = web.DataReader(sym, data_source='yahoo',
 #                                        end='2014-09-12')['Adj Close']
 #    data.columns = symbols
-    print 'imhere1'
+    
     data = get_data(symbols, dates)
-    print 'imhere2'
+    
     data = data.dropna(axis = 1)
     symbols = data.columns #update columns after dropna
     noa = len(symbols)
     
 #    (data / data.ix[0] * 100).plot(figsize=(8, 5))     
     rets = np.log(data / data.shift(1))   
-    print 'imhere3'
+    
     rets.mean() * 252       #anualize
     
     rets.cov() * 252    

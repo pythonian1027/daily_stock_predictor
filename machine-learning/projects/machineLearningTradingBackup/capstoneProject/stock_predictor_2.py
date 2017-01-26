@@ -31,41 +31,6 @@ cwd = os.getcwd()
 os.chdir('../')
 project_path = os.getcwd()
 
-def symbol_to_path(symbol, base_dir=project_path + '/data/'):
-    """Return CSV file path given ticker symbol."""    
-    return os.path.join(base_dir, "{}.csv".format(str(symbol)))
-
-def get_adj_close_data(symbols, dates):
-    """Read stock data (adjusted close) for given symbols from CSV files."""
-    df = pd.DataFrame(index=dates)
-    if 'SPY' not in symbols:  # add SPY for reference, if absent
-        symbols.insert(0, 'SPY')
-
-    for symbol in symbols:
-        df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
-                parse_dates=True, usecols=['Date', 'Adj Close'], na_values=['nan'])
-        df_temp = df_temp.rename(columns={'Adj Close': symbol})
-        df = df.join(df_temp)
-        if symbol == 'SPY':  # drop dates SPY did not trade
-            df = df.dropna(subset=["SPY"])
-
-    return df
-
-#def get_data(symbols, dates):
-#    """Read stock data (adjusted close) for given symbols from CSV files."""
-#    df = pd.DataFrame(index=dates)
-#    if 'SPY' not in symbols:  # add SPY for reference, if absent
-#        symbols.insert(0, 'SPY')
-#
-#    for symbol in symbols:
-#        df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date',
-#                parse_dates=True, usecols=['Date', 'High', 'Adj Close'], na_values=['nan'])
-#        df_temp = df_temp.rename(columns={'Adj Close': symbol + '_adcls'})
-#        df_temp = df_temp.rename(columns={'High': symbol + '_hi'})        
-#        df = df.join(df_temp)
-#        if symbol == 'SPY':  # drop dates SPY did not trade
-#            df = df.dropna(subset=["SPY_adcls"])
-#    return df
 
 def plot_feature_importances(feature_importances, title, feature_names):
     # Normalize the importance values 
@@ -214,6 +179,22 @@ def get_return(k):
         return 0                                      
                                                 
 if __name__ == "__main__":
+    
+    user_select = input('Select 1 for portfolio analysis\nSelect 2 for individual stock price prediction')    
+    
+    if user_select == 1:
+        fname = input('Input path to portfolio location')
+        fname = str(fname)
+        
+        start_date = input('Input starting date (YYYY,MM,DD)')
+        end_date = input('Input ending date (YYYY,MM,DD)1')
+    else:
+        symbol = input('Input ticker symbol')        
+    
+    with open(fname) as f:
+        print f.read()        
+        
+    
     days_back = 100
     start_date = datetime.datetime(2011,01,01)
     end_date = datetime.datetime(2017,01,01)
@@ -223,14 +204,14 @@ if __name__ == "__main__":
     train_sz = (1 - test_sz)
     n_folds = 10
     n_lookup = 1
-
+    
     stocks = load_symbols('buffett_port_syms.pickle' )    
     symbols  = download_hist_data(stocks, start_date, end_date )
 #    symbols = ['WYNN']    
     
     df = get_data(symbols, dates)  
     data = df.dropna(axis = 1) #get rid of symbols with missing data
-    data = data.ix[:, :-30]  #for speedy tests, remove it
+    data = data.ix[:, :-35]  #for speedy tests, remove it
     symbols = data.columns #update columns after dropna    
     weights = get_weights(data)
     weights = weights[1]
@@ -238,6 +219,7 @@ if __name__ == "__main__":
     
     portfolio_profits = list()    
     portfolio_r2 = list()
+    predictor_model = dict()
     for s in symbols:       
         frame = df.ix[:,[s]]    
         #create columns for previous closing days
@@ -266,9 +248,10 @@ if __name__ == "__main__":
 #           Fit Model                                                                     
             reg = fit_model(X_train, np.ravel(y_train), m, cv_sets) #takes in training data            
 #            print "Params for model {} are {}".format(m, reg.get_params())           
+            predictor_model[s] = reg
             
 #           Predict prices            
-            y_predict = reg.predict(X_test)         
+            y_predict = reg.predict(X_test) 
             
 #           Backtest results            
             stk_profit, r2score, stk_rets = back_test(m, y_predict, y_target, frame_db_test)            
@@ -282,6 +265,9 @@ if __name__ == "__main__":
     (dataframe.loc[:,['profits']]).sum()
 #            
     print dataframe.sort_values(by='profits', ascending = False)                    
+    
+    
+    
             
             
             
