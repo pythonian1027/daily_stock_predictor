@@ -180,24 +180,29 @@ def get_return(k):
                                                 
 if __name__ == "__main__":
     
-    user_select = input('Select 1 for portfolio analysis\nSelect 2 for individual stock price prediction')    
+    user_select = raw_input('Select 1 for portfolio analysis:\nSelect 2 for individual stock price prediction:\n')    
     
-    if user_select == 1:
-        fname = input('Input path to portfolio location')
-        fname = str(fname)
+    if int(user_select) == 1:
+        fname = raw_input('Input path to portfolio file location:\n')
+        while os.path.exists(fname) == False:
+            print 'File not found at: {}'.format(fname) 
+            fname = raw_input('Input path to portfolio file location:\n')
+        stocks = load_symbols(fname)                
+            
+                    
+#        fname = str(fname)
         
-        start_date = input('Input starting date (YYYY,MM,DD)')
-        end_date = input('Input ending date (YYYY,MM,DD)1')
+        start_date = input('Input starting date (YYYY,MM,DD):\n')
+        start_date = datetime.datetime(start_date[0], start_date[1], start_date[2])
+        end_date = input('Input ending date (YYYY,MM,DD):\n')
+        end_date = datetime.datetime(end_date[0], end_date[1], end_date[2])
     else:
-        symbol = input('Input ticker symbol')        
-    
-    with open(fname) as f:
-        print f.read()        
+        stocks = input('Input ticker symbol')        
         
-    
+            
     days_back = 100
-    start_date = datetime.datetime(2011,01,01)
-    end_date = datetime.datetime(2017,01,01)
+#    start_date = datetime.datetime(2011,01,01)
+#    end_date = datetime.datetime(2017,01,01)
     dates = pd.date_range(start_date, end_date)  
 
     test_sz = 0.2
@@ -205,13 +210,13 @@ if __name__ == "__main__":
     n_folds = 10
     n_lookup = 1
     
-    stocks = load_symbols('buffett_port_syms.pickle' )    
+#    stocks = load_symbols('buffett_port_syms.pickle' )    
     symbols  = download_hist_data(stocks, start_date, end_date )
 #    symbols = ['WYNN']    
     
     df = get_data(symbols, dates)  
     data = df.dropna(axis = 1) #get rid of symbols with missing data
-    data = data.ix[:, :-35]  #for speedy tests, remove it
+#    data = data.ix[:, :-35]  #for speedy tests, remove it
     symbols = data.columns #update columns after dropna    
     weights = get_weights(data)
     weights = weights[1]

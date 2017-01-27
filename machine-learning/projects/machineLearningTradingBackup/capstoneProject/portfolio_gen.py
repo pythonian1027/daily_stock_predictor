@@ -38,7 +38,7 @@ proj_path = os.getcwd()
 
       
 
-def load_symbols(filename, path=proj_path):    
+def load_symbols(filename, path=proj_path):        
     try:
         handle =  open(path + '/' + filename, 'rb')
     except: 
@@ -49,8 +49,14 @@ def load_symbols(filename, path=proj_path):
         symbols = pickle.load(handle)
         return symbols        
     elif filename.endswith('.txt'):
-        symbols = handle.readline()
-        symbols = symbols.split()
+        s = handle.readline()
+        s = s.strip()        
+        s = s.split(',')   
+        symbols = [k.strip() for k in s]    
+        if symbols[-1].endswith('\n'):
+            temp = symbols[-1][:-1]
+            symbols.remove(symbols[-1])
+            symbols.append(temp)
         return symbols
     else:
         print 'File not found'

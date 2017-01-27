@@ -33,7 +33,7 @@ def get_weights(data_frame):
         exp_volat = np.sqrt(np.dot(weights.T, np.dot(rets.cov() * 252, weights)))
         prets.append(exp_return)
         pvols.append(exp_volat)
-        if exp_return > 0.12 and exp_volat < 0.16: #arbitrary values 
+        if exp_return > 0.12 and exp_volat < 0.20: #arbitrary values 
             srwrs.append((exp_return/exp_volat, weights, exp_return, exp_volat))
 #            print W
                 
