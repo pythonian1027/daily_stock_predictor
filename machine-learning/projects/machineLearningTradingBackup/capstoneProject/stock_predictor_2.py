@@ -192,13 +192,14 @@ if __name__ == "__main__":
                     
 #        fname = str(fname)
         
-        start_date = input('Input starting date (YYYY,MM,DD):\n')
-        start_date = datetime.datetime(start_date[0], start_date[1], start_date[2])
-        end_date = input('Input ending date (YYYY,MM,DD):\n')
-        end_date = datetime.datetime(end_date[0], end_date[1], end_date[2])
     else:
-        stocks = input('Input ticker symbol')        
-        
+        s = raw_input('Input ticker symbol: ')        
+        stocks = [k.strip() for k in s]
+
+    start_date = input('Input starting date (YYYY,MM,DD):\n')
+    start_date = datetime.datetime(start_date[0], start_date[1], start_date[2])
+    end_date = input('Input ending date (YYYY,MM,DD):\n')
+    end_date = datetime.datetime(end_date[0], end_date[1], end_date[2])        
             
     days_back = 100
 #    start_date = datetime.datetime(2011,01,01)
