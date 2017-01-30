@@ -195,21 +195,28 @@ if __name__ == "__main__":
     else:
         s = raw_input('Input ticker symbol: ')    
         s = s.split(',')
-        if len(s) > 1:
-            stocks = [k.strip().upper() for k in s]
-        else:
-            stocks = s.upper()
+        
+        stocks = [k.strip().upper() for k in s]
 
-    start_date = input('Input starting date (YYYY,MM,DD):\n')
-    start_date = datetime.datetime(start_date[0], start_date[1], start_date[2])
-    end_date = input('Input ending date (YYYY,MM,DD):\n')
-    end_date = datetime.datetime(end_date[0], end_date[1], end_date[2])        
-            
+
+
+    start_date = datetime.datetime(2011,01,01)
+    end_date = datetime.datetime(2017,01,01)
+    dates = pd.date_range(start_date, end_date)
+    is_date_instanciated = False
+#    while is_date_instanciated is False:        
+#        start_date = input('Input starting date (YYYY,MM,DD):\n')
+#        start_date = datetime.datetime(start_date[0], start_date[1], start_date[2])
+#        end_date = input('Input ending date (YYYY,MM,DD):\n')
+#        end_date = datetime.datetime(end_date[0], end_date[1], end_date[2])             
+#        dates = pd.date_range(start_date, end_date)   
+#        if len(dates) <= 1:
+#            print '\nStart date and end date must be different' 
+#            print 'Start date must be older than end date'
+#        else:
+#            is_date_instanciated = True
+
     days_back = 100
-#    start_date = datetime.datetime(2011,01,01)
-#    end_date = datetime.datetime(2017,01,01)
-    dates = pd.date_range(start_date, end_date)  
-
     test_sz = 0.2
     train_sz = (1 - test_sz)
     n_folds = 10
@@ -276,7 +283,34 @@ if __name__ == "__main__":
 #            
     print dataframe.sort_values(by='profits', ascending = False)                    
     
+#==============================================================================
+#     
+    todays_date = datetime.date.today()
+    month = (datetime.datetime.now()).month
+    day = (datetime.datetime.now()).day
     
+    y = 2017
+    month = 01
+    day  = 01
+    #retrieve data starting 4 months ago to use 100 days for training
+    if month - 4 <= 0: 
+        y = (datetime.datetime.now()).year - 1
+        m = month + 8 # -4 months + 12                 
+    else:
+        y = (datetime.datetime.now()).year
+        m = month
+    
+    start_date = datetime.datetime(y, m, day)        
+    dates_pred = pd.date_range(start_date, todays_date)
+    
+#    for s in symbols:
+        
+    
+        
+    
+    
+    
+#==============================================================================
     
             
             

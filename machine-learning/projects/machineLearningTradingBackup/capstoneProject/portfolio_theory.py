@@ -33,7 +33,7 @@ def get_weights(data_frame):
         exp_volat = np.sqrt(np.dot(weights.T, np.dot(rets.cov() * 252, weights)))
         prets.append(exp_return)
         pvols.append(exp_volat)
-        if exp_return > 0.12 and exp_volat < 0.20: #arbitrary values 
+        if exp_return > 0.08 and exp_volat < 0.40: #arbitrary values 
             srwrs.append((exp_return/exp_volat, weights, exp_return, exp_volat))
 #            print W
                 
@@ -45,7 +45,7 @@ def get_weights(data_frame):
     try:        
         print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(srwrs)[0], max(srwrs)[2], max(srwrs)[3])        
         plt.plot(max(srwrs)[3], max(srwrs)[2], 'r*', markersize=15.0)
-        plt.annotate('Sharpe Ratio={}'.format(round(max(srwrs)[0],2)), (max(srwrs)[3]-0.005, max(srwrs)[2]*1.3))
+        plt.annotate('Sharpe Ratio={}'.format(round(max(srwrs)[0],2)), (max(srwrs)[3]*(-1.1), max(srwrs)[2]*1.3))
     except Exception:
         pass                
     plt.grid(True)
