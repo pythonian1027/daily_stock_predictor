@@ -82,7 +82,7 @@ def download_hist_data(symbols, start_date, end_date):
     for s in symbols: 
         print 'searching file {}.csv'.format(s)                              
         if os.path.isfile(proj_path + '/data/{}.csv'.format(s)) is False:
-            print proj_path + '/data/{}.csv'.format(s)
+            print 'File Not Found: ' + proj_path + '/data/{}.csv'.format(s)
             try:                    
                 print 'Downloading data from Yahoo for symbos {}'.format(s)                     
                 dframe = web.DataReader(name=s, data_source='yahoo', start=start_date, end=end_date)                    

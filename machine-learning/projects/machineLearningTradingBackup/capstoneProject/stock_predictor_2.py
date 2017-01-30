@@ -193,8 +193,12 @@ if __name__ == "__main__":
 #        fname = str(fname)
         
     else:
-        s = raw_input('Input ticker symbol: ')        
-        stocks = [k.strip() for k in s]
+        s = raw_input('Input ticker symbol: ')    
+        s = s.split(',')
+        if len(s) > 1:
+            stocks = [k.strip().upper() for k in s]
+        else:
+            stocks = s.upper()
 
     start_date = input('Input starting date (YYYY,MM,DD):\n')
     start_date = datetime.datetime(start_date[0], start_date[1], start_date[2])
