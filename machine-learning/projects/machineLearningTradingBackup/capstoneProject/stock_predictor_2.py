@@ -166,12 +166,24 @@ def back_test(model, predictions, target, df_test):
     return profit, r2score, stock_rets
                         
 def get_signal(k):
-    if k['Predicted'] > k['Close Minus {}'.format(n_lookup)]:
-        return 1
-    elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)]:
-        return -1        
+    print k
+    print '\n\n\n\n'
+    if 'Predicted' in k.columns:
+        if k['Predicted'] > k['Close Minus {}'.format(n_lookup)]:
+            return 1
+        elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)]:
+            return -1        
+        else:
+            return 0
     else:
-        return 0
+        if k['Tomorrow'] > k['Today']:
+            return 'Buy'
+        elif k['Tomorrow'] < k['Today']:
+            return 'Sell'
+        else:
+            return 'Hold'                        
+                    
+        
 def get_return(k):
     if k['signal'] == 1:
         return (k[s] - k['Close Minus {}'.format(n_lookup)])/k['Close Minus {}'.format(n_lookup)]           
@@ -302,8 +314,16 @@ if __name__ == "__main__":
     
     start_date = datetime.datetime(y, m, day)        
     dates_pred = pd.date_range(start_date, todays_date)
-    
-#    for s in symbols:
+    predictions = list()    
+    for s in symbols:
+        X = data.ix[-days_back:, [s]]
+        predictions.append(np.asscalar(predictor_model[s].predict(X.T)))
+        
+    df_pred = pd.DataFrame(((data.ix[-1,:]).ravel()).T, index = symbols, columns = ['Today'])
+    df_pred['Tomorrow'] = np.array(predictions).T
+    df_pred= df_pred.assign(signal = df_pred.apply(get_signal, axis = 1))
+        
+        
         
     
         
