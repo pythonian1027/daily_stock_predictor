@@ -173,21 +173,34 @@ def get_signal(k):
             return -1        
         else:
             return 0
-    except:
-        if k['Tomorrow'] > k['Today']:
+    except KeyError:
+        if k['1-day pred'] > k['Today']:
             return 'Buy'
-        elif k['Tomorrow'] < k['Today']:
+        elif k['1-day pred'] < k['Today']:
             return 'Sell'
         else:
             return 'Hold'                        
+
+def get_accuracy(k):
+    try:
+        return k['R2']
+    except KeyError:
+        print 'unhandled exception (get_accuracy)'
                     
-        
+def get_weight(k):        
+    try:
+        return k['weights']
+    except KeyError:        
+        print 'unhandled exception (get_weights)'
+            
+
 def get_return(k):
     if k['signal'] == 1:
         return (k[s] - k['Close Minus {}'.format(n_lookup)])/k['Close Minus {}'.format(n_lookup)]           
     else: 
         return 0                                      
-                                                
+
+                                                    
 if __name__ == "__main__":
     
     user_select = raw_input('Select 1 for portfolio analysis:\nSelect 2 for individual stock price prediction:\n')    
@@ -318,9 +331,10 @@ if __name__ == "__main__":
         predictions.append(np.asscalar(predictor_model[s].predict(X.T)))
         
     df_pred = pd.DataFrame(((data.ix[-1,:]).ravel()).T, index = symbols, columns = ['Today'])
-    df_pred['Tomorrow'] = np.array(predictions).T
-    df_pred= df_pred.assign(signal = df_pred.apply(get_signal, axis = 1))
-        
+    df_pred['1-day pred'] = np.array(predictions).T
+    df_pred = df_pred.assign(Signal = df_pred.apply(get_signal, axis = 1))
+    df_pred = df_pred.assign(Accuracy = dataframe.apply(get_accuracy, axis = 1))
+    df_pred = df_pred.assign(Weights = dataframe.apply(get_weight, axis = 1))
         
         
     
