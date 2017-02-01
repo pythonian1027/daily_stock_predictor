@@ -165,17 +165,15 @@ def back_test(model, predictions, target, df_test):
     stock_rets =  outputs['rets'].sum()             
     return profit, r2score, stock_rets
                         
-def get_signal(k):
-    print k
-    print '\n\n\n\n'
-    if 'Predicted' in k.columns:
+def get_signal(k):    
+    try:
         if k['Predicted'] > k['Close Minus {}'.format(n_lookup)]:
             return 1
         elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)]:
             return -1        
         else:
             return 0
-    else:
+    except:
         if k['Tomorrow'] > k['Today']:
             return 'Buy'
         elif k['Tomorrow'] < k['Today']:
@@ -269,7 +267,7 @@ if __name__ == "__main__":
 #        models = [ 'DTR', 'AdaBoost', 'SVR']
         models = [ 'SVR']                     
         for m in models:
-            print type(X_train), type(y_train)
+#            print type(X_train), type(y_train)
 #           Generate Cross-Validation sets for GridSearchCV
             num_elem_train, num_elem_test, cv_sets = fit_model_inputs(frame_db_train.shape[0], 
                                                                       n_lookup, 
@@ -283,7 +281,7 @@ if __name__ == "__main__":
             y_predict = reg.predict(X_test) 
             
 #           Backtest results            
-            stk_profit, r2score, stk_rets = back_test(m, y_predict, y_target, frame_db_test)            
+            stk_profit, r2score, stk_rets = back_test(m, y_predict, y_target, frame_db_test)                 
             portfolio_profits.append(stk_profit)
             portfolio_r2.append(r2score)
                     
