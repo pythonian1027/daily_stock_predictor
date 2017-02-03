@@ -136,11 +136,11 @@ def fit_model_inputs(train_size, n_lookup, n_folds, test_sz, train_sz):
     return numel_train, numel_test, cvsets   
 
 def print_results(mod, predictions, target):
-    print '{} : R2 = {}'.format(mod, r2_score(predictions, target))
+    print '{} : R2 = {}'.format(mod, r2_score(target, predictions))
     result = 100*np.mean((target.values - predictions)/target.values)
     print 'Avg. Percentage Error {}'.format(result)
     evs = explained_variance_score(target, predictions)
-    print 'Explained Variance Score = {}'.format(evs)
+    print 'Explained Variance Score = {}\n'.format(evs)
                      
 def plot_results(predictions, target):
     t = np.arange(0, target.shape[0])
@@ -240,7 +240,7 @@ if __name__ == "__main__":
 #            is_date_instanciated = True
 
     days_back = 100
-    test_sz = 0.2
+    test_sz = 0.1 # for cross validation
     train_sz = (1 - test_sz)
     n_folds = 10
     n_lookup = 1
@@ -271,14 +271,14 @@ if __name__ == "__main__":
         #reverse the order of the colunms from oldest to latest prices
         frame_db = frame_db.iloc[:,::-1]
         
-        frame_db_train, frame_db_test = get_train_test_sets(frame_db, 0.9)
+        frame_db_train, frame_db_test = get_train_test_sets(frame_db, 0.8)
         X_train = frame_db_train.ix [ : , : -1] # use previous closing prices as features
         y_train = frame_db_train.ix[ :,  [s]] # use last column, adjcls, as a target
         X_test  = frame_db_test.ix[:, : -1]
         y_target = frame_db_test.ix[:, [s]] 
         
-#        models = [ 'DTR', 'AdaBoost', 'SVR']
-        models = [ 'SVR']                     
+        models = [ 'DTR', 'AdaBoost', 'SVR']
+#        models = [ 'SVR']                     
         for m in models:
 #            print type(X_train), type(y_train)
 #           Generate Cross-Validation sets for GridSearchCV
