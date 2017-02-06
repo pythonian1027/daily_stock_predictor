@@ -350,13 +350,14 @@ if __name__ == "__main__":
                                 constraints=cons)
 
 #This time a fourth asset is added to the portfolio. This portfolio mix leads to the absolute minimum variance portfolio:
-
-    optv['x'].round(3)
+    
+    print '*'*30
+    print optv['x'].round(3)
 
 #For the expected return, volatility, and Sharpe ratio, we get:
 
-    statistics(optv['x']).round(3)    
-
+    print statistics(optv['x']).round(3)    
+    print '*'*30
 
 #==============================================================================
 #   Efficient Frontier
@@ -1175,4 +1176,4 @@ if __name__ == "__main__":
 #[46] Cf. http://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo. For example, the Monte Carlo algorithms used throughout the book and analyzed in detail in Chapter 10 all generate so-called Markov chains, since the immediate next step/value only depends on the current state of the process and not on any other historic state or value.
 #
 #[47] Note also here that we are working with absolute price levels and not return data, which would be statistically more sound. For a real-world (trading) application, you would rather choose the return data to implement such an analysis.
-#                 
+#                      

@@ -165,6 +165,7 @@ if __name__ == "__main__":
     import pandas.io.data as web
     
     symbols = ['SPY', 'AAPL', 'IBM', 'LEE']
+#    symbols = ['AAPL', 'MSFT', 'YHOO', 'DB', 'GLD']
     start_date = datetime.datetime(2013, 4, 5)
     end_date = datetime.datetime(2015, 6, 2) 
     dates = pd.date_range(start_date, end_date)  
@@ -212,21 +213,23 @@ if __name__ == "__main__":
 #==============================================================================
 #          Portfolio Optimization
 #==============================================================================
+    data = data.drop(symbols,axis =1) # remove symbols from previous run         
     import numpy as np
     import pandas as pd
     import pandas.io.data as web
     import matplotlib.pyplot as plt
      
      
-    symbols = ['SPY', 'AAPL', 'IBM', 'LEE']    
+#    symbols = ['SPY', 'AAPL', 'IBM', 'LEE']    
+    symbols = ['AAPL', 'MSFT', 'YHOO', 'DB', 'GLD']
     noa = len(symbols)     
      
     
-#    for sym in symbols:
-#         data[sym] = web.DataReader(sym, data_source='yahoo',
-#                                        end='2014-09-12')['Adj Close']
-#    data.columns = symbols
-    data = get_data(symbols, dates)
+    for sym in symbols:
+         data[sym] = web.DataReader(sym, data_source='yahoo',
+                                        end='2014-09-12')['Adj Close']
+    data.columns = symbols
+#    data = get_data(symbols, dates)
 
     (data / data.ix[0] * 100).plot(figsize=(8, 5))     
     rets = np.log(data / data.shift(1))   
@@ -1209,4 +1212,4 @@ if __name__ == "__main__":
 #[46] Cf. http://en.wikipedia.org/wiki/Markov_chain_Monte_Carlo. For example, the Monte Carlo algorithms used throughout the book and analyzed in detail in Chapter 10 all generate so-called Markov chains, since the immediate next step/value only depends on the current state of the process and not on any other historic state or value.
 #
 #[47] Note also here that we are working with absolute price levels and not return data, which would be statistically more sound. For a real-world (trading) application, you would rather choose the return data to implement such an analysis.
-#                                
+#                                     

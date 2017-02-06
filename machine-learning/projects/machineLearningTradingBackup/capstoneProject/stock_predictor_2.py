@@ -74,7 +74,7 @@ def fit_model(X,y, model, cv_sets):
         regressor = SVR() 
         params = { 'C':[1e-3],'gamma': [1e-4], 'kernel': ['linear']}                 
     elif model == 'AdaBoost':
-        regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 50, random_state = None) 
+        regressor = AdaBoostRegressor(DecisionTreeRegressor(max_depth = 4), n_estimators = 500, random_state = None) 
         params = {}
         
     scoring_fnc = make_scorer(performance_metric_r2, greater_is_better = True)                              
@@ -137,10 +137,11 @@ def fit_model_inputs(train_size, n_lookup, n_folds, test_sz, train_sz):
 
 def print_results(mod, predictions, target):
     print '{} : R2 = {}'.format(mod, r2_score(target, predictions))
-    result = 100*np.mean((target.values - predictions)/target.values)
-    print 'Avg. Percentage Error {}'.format(result)
+    accuracy = 100*np.mean((target.values - predictions)/target.values)
+    print 'Avg. Percentage Error {}'.format(accuracy)
     evs = explained_variance_score(target, predictions)
-    print 'Explained Variance Score = {}\n'.format(evs)
+    print 'Explained Variance Score = {}'.format(evs)
+    return accuracy
                      
 def plot_results(predictions, target):
     t = np.arange(0, target.shape[0])
@@ -148,7 +149,7 @@ def plot_results(predictions, target):
     plt.show()    
                         
 def back_test(model, predictions, target, df_test):            
-    print_results(model, predictions, target)
+    accuracy = print_results(model, predictions, target)
 #    plot_results(predictions, target)        
     
     #creating a dataframe of previous closing price, actual price, predicted and signal
@@ -157,26 +158,39 @@ def back_test(model, predictions, target, df_test):
     outputs = outputs.join(dframe_pred)            
     outputs = outputs.assign(signal = outputs.apply(get_signal, axis = 1))
     outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
-#    print outputs
+    outputs['hits']  = outputs.apply(lambda row : (1 if (row['signal'] == 1 and (row[s] > row['Close Minus {}'.format(n_lookup)])) or 
+    (row['signal'] == -1 and (row[s] < row['Close Minus {}'.format(n_lookup)])) else 0), axis = 1)
+    outputs['transactions'] = outputs.apply(lambda row : (abs(row['signal'])), axis = 1)
+#    print num_transactions
+#    num_transactions = num_transactions.remove(0)
+#    num_transactions = len(num_transactions)
+    
+    print outputs
+#    and (row['SPY'] > row['Close Minus {}'.format(n_lookup)]))))
+#   dataframe['weighted_return (yr)'] = dataframe.apply(lambda row: (row['returns']*row['weight']*252), axis=1)       
+#    print num_transactions
     
     profit =  (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus {}'.format(n_lookup)]).sum()
+#    print profit
     profit = profit/outputs.shape[0]    
     r2score = performance_metric_r2(target, predictions)
-    stock_rets =  outputs['rets'].sum()             
-    return profit, r2score, stock_rets
+    stock_rets =  (outputs['rets']).mean()        
+    hits = float((outputs.ix[:, ['hits']]).sum())/float((outputs.ix[:, ['transactions']]).sum() + 1e-6) #use 1e-6 tp avoid division by zero
+    print 'transactions : {}'.format(float((outputs.ix[:, ['transactions']]).sum() + 1e-6))
+    return profit, r2score, stock_rets, accuracy, hits
                         
 def get_signal(k):    
     try:
-        if k['Predicted'] > k['Close Minus {}'.format(n_lookup)]:
+        if k['Predicted'] > k['Close Minus {}'.format(n_lookup)] + 1:
             return 1
-        elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)]:
+        elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)] - 1:
             return -1        
         else:
             return 0
     except KeyError:
-        if k['1-day pred'] > k['Today']:
+        if k['1-day pred'] > k['Today'] + 1:
             return 'Buy'
-        elif k['1-day pred'] < k['Today']:
+        elif k['1-day pred'] < k['Today'] - 1:
             return 'Sell'
         else:
             return 'Hold'                        
@@ -189,14 +203,15 @@ def get_accuracy(k):
                     
 def get_weight(k):        
     try:
-        return k['weights']
+        return k['weight']
     except KeyError:        
         print 'unhandled exception (get_weights)'
             
 
 def get_return(k):
     if k['signal'] == 1:
-        return (k[s] - k['Close Minus {}'.format(n_lookup)])/k['Close Minus {}'.format(n_lookup)]           
+#        return (k[s] - k['Close Minus {}'.format(n_lookup)])/k['Close Minus {}'.format(n_lookup)]           
+        return np.log(k[s]/k['Close Minus {}'.format(n_lookup)])
     else: 
         return 0                                      
 
@@ -259,7 +274,11 @@ if __name__ == "__main__":
     
     portfolio_profits = list()    
     portfolio_r2 = list()
+    portfolio_accuracy = list()
+    portfolio_rets = list()
+    portfolio_hits = list()
     predictor_model = dict()
+    
     for s in symbols:       
         frame = df.ix[:,[s]]    
         #create columns for previous closing days
@@ -277,7 +296,7 @@ if __name__ == "__main__":
         X_test  = frame_db_test.ix[:, : -1]
         y_target = frame_db_test.ix[:, [s]] 
         
-        models = [ 'DTR', 'AdaBoost', 'SVR']
+        models = [ 'SVR']
 #        models = [ 'SVR']                     
         for m in models:
 #            print type(X_train), type(y_train)
@@ -294,17 +313,21 @@ if __name__ == "__main__":
             y_predict = reg.predict(X_test) 
             
 #           Backtest results            
-            stk_profit, r2score, stk_rets = back_test(m, y_predict, y_target, frame_db_test)                 
+            stk_profit, r2score, stk_rets, accur, hits = back_test(m, y_predict, y_target, frame_db_test)                 
             portfolio_profits.append(stk_profit)
             portfolio_r2.append(r2score)
+            portfolio_accuracy.append(accur)
+            portfolio_rets.append(stk_rets)
+            portfolio_hits.append(hits)
                     
-    dataframe = pd.DataFrame([portfolio_profits, portfolio_r2, list(weights)], columns = list(data.columns))    
+    dataframe = pd.DataFrame([portfolio_profits, portfolio_rets, portfolio_r2, list(weights), portfolio_hits], columns = list(data.columns))    
     dataframe = dataframe.T
-    dataframe = dataframe.rename(index =str , columns={0:'profits', 1:'R2', 2:'weights'})
-    performance_metric_r2(dataframe.loc[:,['profits']], dataframe.loc[:,'R2'])
-    (dataframe.loc[:,['profits']]).sum()
+    dataframe = dataframe.rename(index =str , columns={0:'profits', 1:'returns', 2:'R2', 3:'weight', 4:'hits'})
+    dataframe['weighted_return (yr)'] = dataframe.apply(lambda row: (row['returns']*row['weight']*252), axis=1)    
+
+    print 'Portfolio Annualized expected return (%) : {}'.format((((dataframe.loc[:,['weighted_return (yr)']]).sum())*100).round(3))
 #            
-    print dataframe.sort_values(by='profits', ascending = False)                    
+    print dataframe.sort_values(by='returns', ascending = False)                    
     
 #==============================================================================
 #     
@@ -333,7 +356,7 @@ if __name__ == "__main__":
     df_pred = pd.DataFrame(((data.ix[-1,:]).ravel()).T, index = symbols, columns = ['Today'])
     df_pred['1-day pred'] = np.array(predictions).T
     df_pred = df_pred.assign(Signal = df_pred.apply(get_signal, axis = 1))
-    df_pred = df_pred.assign(Accuracy = dataframe.apply(get_accuracy, axis = 1))
+    df_pred = df_pred.assign(r_square = dataframe.apply(get_accuracy, axis = 1))
     df_pred = df_pred.assign(Weights = dataframe.apply(get_weight, axis = 1))
         
         

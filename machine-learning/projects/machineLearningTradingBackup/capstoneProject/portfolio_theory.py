@@ -26,7 +26,7 @@ def get_weights(data_frame):
     #list containing a tuple of sharpe, weights, returns and std
     srwrs = list()
     
-    for p in range (1000):
+    for p in range (2500):
         weights = np.random.random(num_symbols)
         weights /= np.sum(weights)
         exp_return = np.sum(rets.mean() * weights) * 252
@@ -45,7 +45,7 @@ def get_weights(data_frame):
     try:        
         print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(srwrs)[0], max(srwrs)[2], max(srwrs)[3])        
         plt.plot(max(srwrs)[3], max(srwrs)[2], 'r*', markersize=15.0)
-        plt.annotate('Sharpe Ratio={}'.format(round(max(srwrs)[0],2)), (max(srwrs)[3]*(-1.1), max(srwrs)[2]*1.3))
+        plt.annotate('Sharpe Ratio={}'.format(round(max(srwrs)[0],2)), (max(srwrs)[3]*(.97), max(srwrs)[2]*1.05))
     except Exception:
         pass                
     plt.grid(True)

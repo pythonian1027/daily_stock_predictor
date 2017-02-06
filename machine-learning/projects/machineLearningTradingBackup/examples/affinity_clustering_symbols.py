@@ -144,7 +144,7 @@ if __name__ == "__main__":
        
 
                 
-    num_symbols = 150
+    num_symbols = 200
     delta_quotes = delta_quotes[:, :num_symbols]
     symbols = symbols[:num_symbols]
     delta_quotes = delta_quotes.T
