@@ -25,6 +25,7 @@ import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys, traceback
+import scipy.optimize as sco
 
 #project_path ='/home/rcortez/projects/python/projects/umlNanoDegee/machine-learning/projects/machineLearningTradingBackup' 
 cwd = os.getcwd()
@@ -165,32 +166,38 @@ def back_test(model, predictions, target, df_test):
 #    num_transactions = num_transactions.remove(0)
 #    num_transactions = len(num_transactions)
     
-    print outputs
+#    print outputs
 #    and (row['SPY'] > row['Close Minus {}'.format(n_lookup)]))))
 #   dataframe['weighted_return (yr)'] = dataframe.apply(lambda row: (row['returns']*row['weight']*252), axis=1)       
 #    print num_transactions
     
-    profit =  (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus {}'.format(n_lookup)]).sum()
+    profit_buy =  (outputs[outputs['signal']==1][s] - outputs[outputs['signal'] == 1]['Close Minus {}'.format(n_lookup)]).sum()
+    profit_sell = (outputs[outputs['signal'] == -1]['Close Minus {}'.format(n_lookup)] - outputs[outputs['signal']== -1][s] ).sum()
+    print 'profit buy {}'.format(profit_buy)
+    print 'profict_sell {}'.format(profit_sell)
 #    print profit
-    profit = profit/outputs.shape[0]    
+      
     r2score = performance_metric_r2(target, predictions)
-    stock_rets =  (outputs['rets']).mean()        
+#    stock_rets =  (outputs['rets']).mean()        
+    profits = profit_buy + profit_sell
+    stock_rets = (outputs.ix[0, s] + profits)/(outputs.ix[0, s]) - 1
     hits = float((outputs.ix[:, ['hits']]).sum())/float((outputs.ix[:, ['transactions']]).sum() + 1e-6) #use 1e-6 tp avoid division by zero
+    num_days = outputs.shape[0]
     print 'transactions : {}'.format(float((outputs.ix[:, ['transactions']]).sum() + 1e-6))
-    return profit, r2score, stock_rets, accuracy, hits
+    return profit_buy, profit_sell,  r2score, stock_rets, accuracy, hits, num_days, outputs
                         
 def get_signal(k):    
     try:
-        if k['Predicted'] > k['Close Minus {}'.format(n_lookup)] + 1:
+        if k['Predicted'] > k['Close Minus {}'.format(n_lookup)]:
             return 1
-        elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)] - 1:
+        elif k['Predicted'] < k['Close Minus {}'.format(n_lookup)]:
             return -1        
         else:
             return 0
     except KeyError:
-        if k['1-day pred'] > k['Today'] + 1:
+        if k['1-day pred'] > k['Today']:
             return 'Buy'
-        elif k['1-day pred'] < k['Today'] - 1:
+        elif k['1-day pred'] < k['Today']:
             return 'Sell'
         else:
             return 'Hold'                        
@@ -201,11 +208,11 @@ def get_accuracy(k):
     except KeyError:
         print 'unhandled exception (get_accuracy)'
                     
-def get_weight(k):        
+def get_asset_weight(k):        
     try:
         return k['weight']
     except KeyError:        
-        print 'unhandled exception (get_weights)'
+        print 'unhandled exception (get_asset_weight)'
             
 
 def get_return(k):
@@ -215,7 +222,42 @@ def get_return(k):
     else: 
         return 0                                      
 
-                                                    
+def print_benchmarks(bm):
+    ret = (bm.ix[-1,'SPY'] - bm.ix[0, 'SPY'])/bm.ix[0, 'SPY']  
+    print type(ret)
+    print 'SPY return during test period from \'{} to {}\' is: {}%'.format(bm.index[0].date(), bm.index[-1].date(), (100*ret).round(3) )
+
+def statistics(weights):
+    '''returns portfolio statistics
+    inputs:
+    weights : array-like weights for 
+    differrent securities in portfolio
+    rets : natural log returns
+    
+    outputs:
+    pret: float expected portfolio return
+    pvol: float expected portfolio volatility
+    pret/pvol : float Sharpe Ration for risk free = 0
+    '''
+    weights  = np.array(weights)
+    pret = np.sum(rets.mean()*weights)*252
+    pvol = np.sqrt(np.dot(weights.T, np.dot(rets.cov()*252, weights)))
+    return np.array([pret, pvol, pret/pvol])    
+
+#maximization of Sharpe ratio
+def minimize_sharpe_ratio(weights):
+    return -statistics(weights)[2]
+        
+def max_sharpe_ratio(num_syms):
+    #set portfolio constrainsts, weights add up to 1
+    cons = ({'type': 'eq', 'fun':lambda x: np.sum(x) - 1})        
+    #bounds, weights must be within 0 and 1
+    bnds = tuple((0,1) for x in range(num_syms))
+    #initial weight guess 
+    wo = num_syms*[1./num_syms]
+    maxSR = sco.minimize(minimize_sharpe_ratio, wo, method='SLSQP',bounds=bnds, constraints = cons)
+    return maxSR
+    
 if __name__ == "__main__":
     
     user_select = raw_input('Select 1 for portfolio analysis:\nSelect 2 for individual stock price prediction:\n')    
@@ -267,12 +309,20 @@ if __name__ == "__main__":
     df = get_data(symbols, dates)  
     data = df.dropna(axis = 1) #get rid of symbols with missing data
 #    data = data.ix[:, :-35]  #for speedy tests, remove it
+    benchmark = data.ix[:, ['SPY']]
+    data = data.drop('SPY', axis = 1) # drop benchmark from analysis
     symbols = data.columns #update columns after dropna    
-    weights = get_weights(data)
-    weights = weights[1]
+    
+    stats = get_weights(data) #get weights for the most recent 1 yr period 
+    weights = stats[1]
+    
+#    woobs = (max_sharpe_ratio(data.shape[1]))
+    rets = np.log(data / data.shift(1))   
+    
     print weights
     
-    portfolio_profits = list()    
+    portfolio_profits_buy = list()    
+    portfolio_profits_sell = list()    
     portfolio_r2 = list()
     portfolio_accuracy = list()
     portfolio_rets = list()
@@ -313,21 +363,42 @@ if __name__ == "__main__":
             y_predict = reg.predict(X_test) 
             
 #           Backtest results            
-            stk_profit, r2score, stk_rets, accur, hits = back_test(m, y_predict, y_target, frame_db_test)                 
-            portfolio_profits.append(stk_profit)
+            stk_profit_buy, stk_profit_sell, r2score, stk_rets, accur, hits, ndays, outputs = back_test(m, y_predict, y_target, frame_db_test)                 
+            portfolio_profits_buy.append(stk_profit_buy)
+            portfolio_profits_sell.append(stk_profit_sell)
             portfolio_r2.append(r2score)
             portfolio_accuracy.append(accur)
             portfolio_rets.append(stk_rets)
             portfolio_hits.append(hits)
                     
-    dataframe = pd.DataFrame([portfolio_profits, portfolio_rets, portfolio_r2, list(weights), portfolio_hits], columns = list(data.columns))    
+    dataframe = pd.DataFrame([portfolio_profits_buy, portfolio_profits_sell, portfolio_rets, portfolio_r2, list(weights), portfolio_hits], columns = list(data.columns))    
     dataframe = dataframe.T
-    dataframe = dataframe.rename(index =str , columns={0:'profits', 1:'returns', 2:'R2', 3:'weight', 4:'hits'})
-    dataframe['weighted_return (yr)'] = dataframe.apply(lambda row: (row['returns']*row['weight']*252), axis=1)    
+    dataframe = dataframe.rename(index =str , columns={0:'profits buy', 1:'profits sell', 2:'returns', 3:'R2', 4:'weight', 5:'hits'})
+    dataframe['Asset return'] = dataframe.apply(lambda row: (row['returns']*row['weight']), axis=1)    
+    
+#    benchmark = dataframe.ix[['SPY'], :]
+#    dataframe = dataframe.drop(['SPY'], axis = 0)
 
-    print 'Portfolio Annualized expected return (%) : {}'.format((((dataframe.loc[:,['weighted_return (yr)']]).sum())*100).round(3))
+    print 'Portfolio Annualized expected return (%) : {}'.format((((dataframe.loc[:,['Asset return']]).sum())*100).round(3))
+
 #            
-    print dataframe.sort_values(by='returns', ascending = False)                    
+    print dataframe.sort_values(by='profits buy', ascending = False)   
+    mSR = max_sharpe_ratio(data.shape[1])
+    
+#==============================================================================
+#     Calculate Benchmark Results (SPY results for the same test period)
+    index = frame_db_test.index    
+    bframe = benchmark.ix[index, ['SPY']]
+    print_benchmarks(bframe)
+    
+#==============================================================================
+    
+    print '\nTotal Number of Traded days: {}'.format(ndays)
+    print 'Total Profit : {}'.format(dataframe.ix[:, 'profits buy'].sum() +
+                                dataframe.ix[:, 'profits sell'].sum())
+                                
+    ret = np.float64(dataframe.ix[:, 'Asset return'].sum())                                
+    print 'Portfolio Return : {}%'.format((100*ret).round(3))                                
     
 #==============================================================================
 #     
@@ -357,7 +428,7 @@ if __name__ == "__main__":
     df_pred['1-day pred'] = np.array(predictions).T
     df_pred = df_pred.assign(Signal = df_pred.apply(get_signal, axis = 1))
     df_pred = df_pred.assign(r_square = dataframe.apply(get_accuracy, axis = 1))
-    df_pred = df_pred.assign(Weights = dataframe.apply(get_weight, axis = 1))
+    df_pred = df_pred.assign(Weights = dataframe.apply(get_asset_weight, axis = 1))
         
         
     

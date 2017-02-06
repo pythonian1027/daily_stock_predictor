@@ -6,14 +6,13 @@ Created on Sun Jan 22 18:22:18 2017
 """
 
 import numpy as np
+import scipy.optimize as sco
 import matplotlib.pyplot as plt
 
 
 
 def get_weights(data_frame):
     rets = np.log(data_frame / data_frame.shift(1))   
-    rets.mean() * 252       
-    rets.cov() * 252    
     
 #==============================================================================
 #     The Basic Theory
@@ -45,7 +44,7 @@ def get_weights(data_frame):
     try:        
         print 'Sharpe Ratio: {}\nExp. Return: {}\nExp. Risk: {}'.format(max(srwrs)[0], max(srwrs)[2], max(srwrs)[3])        
         plt.plot(max(srwrs)[3], max(srwrs)[2], 'r*', markersize=15.0)
-        plt.annotate('Sharpe Ratio={}'.format(round(max(srwrs)[0],2)), (max(srwrs)[3]*(.97), max(srwrs)[2]*1.05))
+        plt.annotate('Sharpe Ratio={}'.format(round(max(srwrs)[0],2)), (max(srwrs)[3]*(.95), max(srwrs)[2]*1.07))
     except Exception:
         pass                
     plt.grid(True)
@@ -60,3 +59,9 @@ def get_weights(data_frame):
 #    plt.colorbar(label='Sharpe ratio', boundaries = bnds)    
     print plt.gca()
     return max(srwrs) # returns tuple (sharpe ratio, weights, return, std)
+  
+
+
+    
+
+   
