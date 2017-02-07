@@ -383,10 +383,7 @@ if __name__ == "__main__":
     
 #    benchmark = dataframe.ix[['SPY'], :]
 #    dataframe = dataframe.drop(['SPY'], axis = 0)
-
-    print 'Portfolio Annualized expected return (%) : {}'.format((((dataframe.loc[:,['Asset return']]).sum())*100).round(3))
-
-#            
+         
     print dataframe.sort_values(by='profits buy', ascending = False)   
     
     
@@ -414,7 +411,7 @@ if __name__ == "__main__":
     r = np.array(long_position_return)
     w = np.array(dataframe.ix[:, 'weight'])
     
-    print 'Long Position Portfolio Return : {}'.format((np.dot(r.T, w)).round(3))
+    print 'Long Position Portfolio Return : {}%'.format(100*(np.dot(r.T, w)).round(3))
     
                                                       
 #==============================================================================
