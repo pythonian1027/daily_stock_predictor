@@ -273,7 +273,7 @@ if __name__ == "__main__":
 #        fname = str(fname)
         
     else:
-        s = raw_input('Input ticker symbol: ')    
+        s = raw_input('Input ticker symbol(s) (comma separated): ')    
         s = s.split(',')
         
         stocks = [k.strip().upper() for k in s]
@@ -313,13 +313,6 @@ if __name__ == "__main__":
     data = data.drop('SPY', axis = 1) # drop benchmark from analysis
     symbols = data.columns #update columns after dropna    
     
-    stats = get_weights(data) #get weights for the most recent 1 yr period 
-    weights = stats[1]
-    
-#    woobs = (max_sharpe_ratio(data.shape[1]))
-    rets = np.log(data / data.shift(1))   
-    
-    print weights
     
     portfolio_profits_buy = list()    
     portfolio_profits_sell = list()    
@@ -327,7 +320,9 @@ if __name__ == "__main__":
     portfolio_accuracy = list()
     portfolio_rets = list()
     portfolio_hits = list()
+    long_position_return = list()
     predictor_model = dict()
+    
     
     for s in symbols:       
         frame = df.ix[:,[s]]    
@@ -346,6 +341,8 @@ if __name__ == "__main__":
         X_test  = frame_db_test.ix[:, : -1]
         y_target = frame_db_test.ix[:, [s]] 
         
+        #calculate the performance assuming a long position over the testing period
+        long_position_return.append(np.float64(y_target.ix[-1,].values/y_target.ix[0,].values) - 1)
         models = [ 'SVR']
 #        models = [ 'SVR']                     
         for m in models:
@@ -371,7 +368,15 @@ if __name__ == "__main__":
             portfolio_rets.append(stk_rets)
             portfolio_hits.append(hits)
                     
-    dataframe = pd.DataFrame([portfolio_profits_buy, portfolio_profits_sell, portfolio_rets, portfolio_r2, list(weights), portfolio_hits], columns = list(data.columns))    
+#    stats = get_weights(data) #get weights for the most recent 1 yr period 
+#    weights = stats[1]
+    idx_train = frame_db_train.index 
+    #use training set for returns and portfolio weights calculation
+    rets = np.log(data.ix[idx_train, ] / data.ix[idx_train, ].shift(1))       
+    mSR = max_sharpe_ratio(data.shape[1])
+    weights = list(mSR.x)
+
+    dataframe = pd.DataFrame([portfolio_profits_buy, portfolio_profits_sell, portfolio_rets, portfolio_r2, weights, portfolio_hits], columns = list(data.columns))    
     dataframe = dataframe.T
     dataframe = dataframe.rename(index =str , columns={0:'profits buy', 1:'profits sell', 2:'returns', 3:'R2', 4:'weight', 5:'hits'})
     dataframe['Asset return'] = dataframe.apply(lambda row: (row['returns']*row['weight']), axis=1)    
@@ -383,23 +388,35 @@ if __name__ == "__main__":
 
 #            
     print dataframe.sort_values(by='profits buy', ascending = False)   
-    mSR = max_sharpe_ratio(data.shape[1])
+    
     
 #==============================================================================
 #     Calculate Benchmark Results (SPY results for the same test period)
-    index = frame_db_test.index    
-    bframe = benchmark.ix[index, ['SPY']]
+    idx_test = frame_db_test.index    
+    bframe = benchmark.ix[idx_test, ['SPY']]
     print_benchmarks(bframe)
-    
+        
 #==============================================================================
-    
+#   Calculate Performance long position performance over testing period
+        
+
+#     
+#==============================================================================
     print '\nTotal Number of Traded days: {}'.format(ndays)
     print 'Total Profit : {}'.format(dataframe.ix[:, 'profits buy'].sum() +
                                 dataframe.ix[:, 'profits sell'].sum())
                                 
-    ret = np.float64(dataframe.ix[:, 'Asset return'].sum())                                
-    print 'Portfolio Return : {}%'.format((100*ret).round(3))                                
+    asset_ret = np.float64(dataframe.ix[:, 'Asset return'].sum())                                
+    print 'Portfolio Return : {}%'.format((100*asset_ret).round(3))         
+    print 'Statistics Exp. return, Exp. volatility, SR: {}'.format(statistics(mSR['x']).round(3))
     
+    #calculate actual weighted returns assuming long positions during testing period
+    r = np.array(long_position_return)
+    w = np.array(dataframe.ix[:, 'weight'])
+    
+    print 'Long Position Portfolio Return : {}'.format((np.dot(r.T, w)).round(3))
+    
+                                                      
 #==============================================================================
 #     
     todays_date = datetime.date.today()
