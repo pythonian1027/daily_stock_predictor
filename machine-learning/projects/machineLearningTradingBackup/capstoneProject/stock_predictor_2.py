@@ -370,8 +370,11 @@ if __name__ == "__main__":
                     
 #    stats = get_weights(data) #get weights for the most recent 1 yr period 
 #    weights = stats[1]
-    idx_train = frame_db_train.index 
+    idx_train = frame_db_train.index     
     #use training set for returns and portfolio weights calculation
+    weight_period = 128
+    idx_train = idx_train[-weight_period:] #use only the last year    
+    
     rets = np.log(data.ix[idx_train, ] / data.ix[idx_train, ].shift(1))       
     mSR = max_sharpe_ratio(data.shape[1])
     weights = list(mSR.x)
@@ -412,7 +415,7 @@ if __name__ == "__main__":
     w = np.array(dataframe.ix[:, 'weight'])
     
     print 'Long Position Portfolio Return : {}%'.format(100*(np.dot(r.T, w)).round(3))
-    
+    print 'Period over which weights were calculated from {} to {}'.format(idx_train[0].date(), idx_train[-1].date())
                                                       
 #==============================================================================
 #     
