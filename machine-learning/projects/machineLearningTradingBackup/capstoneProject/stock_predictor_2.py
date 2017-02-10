@@ -118,7 +118,13 @@ def get_train_test_sets(dframe, train_size):
     train_data_sz = int(dframe.shape[0]*train_size)
     train_set = dframe.ix[:train_data_sz]
     test_set = dframe.ix[train_data_sz:]
-    return train_set, test_set    
+    return train_set, test_set 
+    
+def get_train_test_idxs(_dates, _train_size):
+    _train_data_sz = int(_dates.shape[0]*(_train_size))    
+    _train_idxs = _dates[:_train_data_sz]
+    _test_idxs = _dates[_train_data_sz:]
+    return _train_idxs, _test_idxs        
 
 def generate_cv_sets(numel_train, numel_test, numfolds):
     cvset = list()
@@ -158,7 +164,11 @@ def back_test(model, predictions, target, df_test):
     dframe_pred = pd.DataFrame({'Predicted':y_predict}, index= outputs.index)
     outputs = outputs.join(dframe_pred)            
     outputs = outputs.assign(signal = outputs.apply(get_signal, axis = 1))
-    outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
+    outputs = outputs.assign(gains = outputs.apply(get_daily_gains, axis = 1))
+    outputs['cum_gains'] = outputs['gains'].cumsum()
+    outputs['{}_preds'.format(s)] = outputs['cum_gains'] + outputs[s][0] #add initial asset value
+#    outputs = outputs.assign(rets = outputs.apply(get_return, axis = 1))
+    
     outputs['hits']  = outputs.apply(lambda row : (1 if (row['signal'] == 1 and (row[s] > row['Close Minus {}'.format(n_lookup)])) or 
     (row['signal'] == -1 and (row[s] < row['Close Minus {}'.format(n_lookup)])) else 0), axis = 1)
     outputs['transactions'] = outputs.apply(lambda row : (abs(row['signal'])), axis = 1)
@@ -214,13 +224,18 @@ def get_asset_weight(k):
     except KeyError:        
         print 'unhandled exception (get_asset_weight)'
             
-
-def get_return(k):
+def get_daily_gains(k):
     if k['signal'] == 1:
-#        return (k[s] - k['Close Minus {}'.format(n_lookup)])/k['Close Minus {}'.format(n_lookup)]           
-        return np.log(k[s]/k['Close Minus {}'.format(n_lookup)])
-    else: 
-        return 0                                      
+        return k[s] - k['Close Minus {}'.format(n_lookup)]
+    else:
+        return -(k[s] - k['Close Minus {}'.format(n_lookup)])
+
+#def get_return(k):
+#    if k['signal'] == 1:
+##        return (k[s] - k['Close Minus {}'.format(n_lookup)])/k['Close Minus {}'.format(n_lookup)]           
+#        return np.log(k[s]/k['Close Minus {}'.format(n_lookup)])
+#    else: 
+#        return 0                                      
 
 def print_benchmarks(bm):
     ret = (bm.ix[-1,'SPY'] - bm.ix[0, 'SPY'])/bm.ix[0, 'SPY']  
@@ -312,8 +327,8 @@ if __name__ == "__main__":
     benchmark = data.ix[:, ['SPY']]
     data = data.drop('SPY', axis = 1) # drop benchmark from analysis
     symbols = data.columns #update columns after dropna    
-    
-    
+    train_idxs, test_idxs = get_train_test_idxs(data.index, 0.8)
+          
     portfolio_profits_buy = list()    
     portfolio_profits_sell = list()    
     portfolio_r2 = list()
@@ -321,8 +336,8 @@ if __name__ == "__main__":
     portfolio_rets = list()
     portfolio_hits = list()
     long_position_return = list()
-    predictor_model = dict()
-    
+    predictor_model = dict()    
+    pred_dframe = pd.DataFrame(index = test_idxs)
     
     for s in symbols:       
         frame = df.ix[:,[s]]    
@@ -361,28 +376,49 @@ if __name__ == "__main__":
             
 #           Backtest results            
             stk_profit_buy, stk_profit_sell, r2score, stk_rets, accur, hits, ndays, outputs = back_test(m, y_predict, y_target, frame_db_test)                 
+            plot_preds = outputs.ix[:, ['{}_preds'.format(s), s]]
+            plot_preds.plot(grid=True)
+            
             portfolio_profits_buy.append(stk_profit_buy)
             portfolio_profits_sell.append(stk_profit_sell)
             portfolio_r2.append(r2score)
             portfolio_accuracy.append(accur)
             portfolio_rets.append(stk_rets)
             portfolio_hits.append(hits)
+            pred_dframe['{}_preds'.format(s)] = outputs.ix[:,['{}_preds'.format(s)]]
                     
 #    stats = get_weights(data) #get weights for the most recent 1 yr period 
 #    weights = stats[1]
     idx_train = frame_db_train.index     
     #use training set for returns and portfolio weights calculation
     weight_period = 128
-    idx_train = idx_train[-weight_period:] #use only the last year    
+    weight_period_dates = idx_train[-weight_period:] #use only the last year    
     
-    rets = np.log(data.ix[idx_train, ] / data.ix[idx_train, ].shift(1))       
+    rets = np.log(data.ix[weight_period_dates, ] / data.ix[weight_period_dates, ].shift(1))       
     mSR = max_sharpe_ratio(data.shape[1])
     weights = list(mSR.x)
+    
+
 
     dataframe = pd.DataFrame([portfolio_profits_buy, portfolio_profits_sell, portfolio_rets, portfolio_r2, weights, portfolio_hits], columns = list(data.columns))    
     dataframe = dataframe.T
     dataframe = dataframe.rename(index =str , columns={0:'profits buy', 1:'profits sell', 2:'returns', 3:'R2', 4:'weight', 5:'hits'})
     dataframe['Asset return'] = dataframe.apply(lambda row: (row['returns']*row['weight']), axis=1)    
+
+#==============================================================================
+#     calculate weighted returns
+    print pred_dframe
+    pred_dframe = pred_dframe.ix[frame_db_test.index, ] #removed nans from pre-processing 
+    for s in symbols:
+        pred_dframe['{}_preds'.format(s)] = pred_dframe['{}_preds'.format(s)]*dataframe['weight'][s]
+    pred_dframe['pred_totals'] = pred_dframe.T.sum()   
+    pred_dframe['benchmark'] = benchmark.ix[frame_db_test.index,]   
+    pred_dframe = pred_dframe.drop(pred_dframe.columns[:-2], axis = 1)
+    #normalize
+    pred_dframe1 = ( pred_dframe / pred_dframe.shift(1)) 
+    pred_dframe1.ix[0, :] = 0 #pandas leaves the 0th row with NaNs
+    print pred_dframe1
+#==============================================================================
     
 #    benchmark = dataframe.ix[['SPY'], :]
 #    dataframe = dataframe.drop(['SPY'], axis = 0)
@@ -415,7 +451,7 @@ if __name__ == "__main__":
     w = np.array(dataframe.ix[:, 'weight'])
     
     print 'Long Position Portfolio Return : {}%'.format(100*(np.dot(r.T, w)).round(3))
-    print 'Period over which weights were calculated from {} to {}'.format(idx_train[0].date(), idx_train[-1].date())
+    print 'Period over which weights were calculated from {} to {}'.format(weight_period_dates[0].date(), weight_period_dates[-1].date())
                                                       
 #==============================================================================
 #     
