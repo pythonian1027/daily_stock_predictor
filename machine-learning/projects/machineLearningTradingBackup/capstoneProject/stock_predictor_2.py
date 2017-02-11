@@ -385,6 +385,8 @@ if __name__ == "__main__":
             portfolio_accuracy.append(accur)
             portfolio_rets.append(stk_rets)
             portfolio_hits.append(hits)
+            pred_dframe[s] = outputs.ix[:,[s]]
+            pred_dframe['{}_rets'.format(s)] = outputs.ix[:, ['cum_gains']]/outputs.ix[0,s]            
             pred_dframe['{}_preds'.format(s)] = outputs.ix[:,['{}_preds'.format(s)]]
                     
 #    stats = get_weights(data) #get weights for the most recent 1 yr period 
@@ -410,14 +412,19 @@ if __name__ == "__main__":
     print pred_dframe
     pred_dframe = pred_dframe.ix[frame_db_test.index, ] #removed nans from pre-processing 
     for s in symbols:
-        pred_dframe['{}_preds'.format(s)] = pred_dframe['{}_preds'.format(s)]*dataframe['weight'][s]
+        pred_dframe['{}_wr'.format(s)] = pred_dframe['{}_rets'.format(s)]*dataframe['weight'][s]
     pred_dframe['pred_totals'] = pred_dframe.T.sum()   
     pred_dframe['benchmark'] = benchmark.ix[frame_db_test.index,]   
-    pred_dframe = pred_dframe.drop(pred_dframe.columns[:-2], axis = 1)
+#    pred_dframe = pred_dframe.drop(pred_dframe.columns[:-2], axis = 1)
     #normalize
-    pred_dframe1 = ( pred_dframe / pred_dframe.shift(1)) 
-    pred_dframe1.ix[0, :] = 0 #pandas leaves the 0th row with NaNs
+    pred_dframe1 = ( pred_dframe / pred_dframe.ix[0]) 
+#    pred_dframe1.ix[0, :] = 0 #pandas leaves the 0th row with NaNs
     print pred_dframe1
+    
+    s = pred_dframe.ix[:, ['GOOG_wr', 'AMZN_wr', 'AAPL_wr']]
+    total_ret = s.T.sum()
+#    pred_dframe1 = ( pred_dframe - pred_dframe.ix[0]  )
+#    pred_dframe1.plot(grid = True)
 #==============================================================================
     
 #    benchmark = dataframe.ix[['SPY'], :]
