@@ -229,6 +229,9 @@ def get_daily_gains(k):
         return k[s] - k['Close Minus {}'.format(n_lookup)]
     else:
         return -(k[s] - k['Close Minus {}'.format(n_lookup)])
+        
+def norm_return_to_benchmark(k):
+    return k['SPY']*(1+k['rets'])        
 
 #def get_return(k):
 #    if k['signal'] == 1:
@@ -324,7 +327,7 @@ if __name__ == "__main__":
     df = get_data(symbols, dates)  
     data = df.dropna(axis = 1) #get rid of symbols with missing data
 #    data = data.ix[:, :-35]  #for speedy tests, remove it
-    benchmark = data.ix[:, ['SPY']]
+    SPY = data.ix[:, ['SPY']]
     data = data.drop('SPY', axis = 1) # drop benchmark from analysis
     symbols = data.columns #update columns after dropna    
     train_idxs, test_idxs = get_train_test_idxs(data.index, 0.8)
@@ -386,7 +389,8 @@ if __name__ == "__main__":
             portfolio_rets.append(stk_rets)
             portfolio_hits.append(hits)
             pred_dframe[s] = outputs.ix[:,[s]]
-            pred_dframe['{}_rets'.format(s)] = outputs.ix[:, ['cum_gains']]/outputs.ix[0,s]            
+            pred_dframe['{}_rets'.format(s)] = outputs.ix[:, ['cum_gains']]/outputs.ix[0,s]# normalized by the corresponding
+            #initial symbol since cum_gains first time step is already a prediction of outputs.ix[0,s] 
             pred_dframe['{}_preds'.format(s)] = outputs.ix[:,['{}_preds'.format(s)]]
                     
 #    stats = get_weights(data) #get weights for the most recent 1 yr period 
@@ -413,21 +417,36 @@ if __name__ == "__main__":
     pred_dframe = pred_dframe.ix[frame_db_test.index, ] #removed nans from pre-processing 
     for s in symbols:
         pred_dframe['{}_wr'.format(s)] = pred_dframe['{}_rets'.format(s)]*dataframe['weight'][s]
-    pred_dframe['pred_totals'] = pred_dframe.T.sum()   
-    pred_dframe['benchmark'] = benchmark.ix[frame_db_test.index,]   
+#    pred_dframe['pred_totals'] = pred_dframe.T.sum()   
+    
 #    pred_dframe = pred_dframe.drop(pred_dframe.columns[:-2], axis = 1)
     #normalize
-    pred_dframe1 = ( pred_dframe / pred_dframe.ix[0]) 
+#    pred_dframe1 = ( pred_dframe / pred_dframe.ix[0]) 
 #    pred_dframe1.ix[0, :] = 0 #pandas leaves the 0th row with NaNs
-    print pred_dframe1
+#    print pred_dframe1
+
+    weighted_returns = pred_dframe.ix[:, -len(symbols):]
+#    s = pred_dframe.ix[:, ['GOOG_wr', 'AMZN_wr', 'AAPL_wr']]
     
-    s = pred_dframe.ix[:, ['GOOG_wr', 'AMZN_wr', 'AAPL_wr']]
-    total_ret = s.T.sum()
+#    benchmark = SPY.ix[frame_db_test.index,:]   
+    total_ret_series = weighted_returns.sum(axis = 1)
+    total_ret = SPY.ix[frame_db_test.index,:]   
+    total_ret['rets'] = total_ret_series
+    total_ret = total_ret.assign( SVR= total_ret.apply(norm_return_to_benchmark, axis = 1))
+    bench = total_ret.drop('rets', axis = 1)
+    ax = bench.plot(grid = True, title='SVR vs. SPY', fontsize = 12)
+#==============================================================================
+#     Plot All Companies prices
+    symbols_spy = symbols.insert(0, 'SPY') #add benchmark for plot results
+    plot_data(df.ix[X_test.index, symbols_spy], title='Stock Prices')
+#==============================================================================
+    
+    
 #    pred_dframe1 = ( pred_dframe - pred_dframe.ix[0]  )
 #    pred_dframe1.plot(grid = True)
 #==============================================================================
     
-#    benchmark = dataframe.ix[['SPY'], :]
+#    SPY = dataframe.ix[['SPY'], :]
 #    dataframe = dataframe.drop(['SPY'], axis = 0)
          
     print dataframe.sort_values(by='profits buy', ascending = False)   
@@ -436,7 +455,7 @@ if __name__ == "__main__":
 #==============================================================================
 #     Calculate Benchmark Results (SPY results for the same test period)
     idx_test = frame_db_test.index    
-    bframe = benchmark.ix[idx_test, ['SPY']]
+    bframe = SPY.ix[idx_test, ['SPY']]
     print_benchmarks(bframe)
         
 #==============================================================================
