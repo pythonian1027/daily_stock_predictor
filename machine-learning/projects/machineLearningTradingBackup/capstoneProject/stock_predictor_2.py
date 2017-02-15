@@ -5,7 +5,7 @@ Created on Sun Dec 11 19:12:20 2016
 @author: rcortez
 """
 
-
+#use matplotlib.finance candlestick plots
 #back testing
 from sklearn.metrics import r2_score, make_scorer, fbeta_score
 from sklearn.grid_search import GridSearchCV
@@ -14,6 +14,7 @@ from sklearn.metrics import mean_squared_error, explained_variance_score
 from sklearn.ensemble import RandomForestRegressor, AdaBoostRegressor
 from portfolio_theory import get_weights
 from portfolio_gen import  get_data, load_symbols, download_hist_data
+import matplotlib.finance as mpf
 
 
 from sklearn.svm import SVR
@@ -439,6 +440,7 @@ if __name__ == "__main__":
 #     Plot All Companies prices
     symbols_spy = symbols.insert(0, 'SPY') #add benchmark for plot results
     plot_data(df.ix[X_test.index, symbols_spy], title='Stock Prices')
+#    mpf.candlestick_ochl
 #==============================================================================
     
     
