@@ -16,7 +16,6 @@ import os
 import sys
 import pickle
 
-os.chdir('../')
 proj_path = os.getcwd()
 
 
@@ -45,12 +44,13 @@ def load_symbols(filename, path=proj_path):
         sys.exit()
     
 
-#def download_symbol(s):
-#    try:
-#        dframe = web.DataReader(name= s, data_source = 'yahoo', start = start_date, end = end_date)
-#        dframe.to_csv(proj_path + '/data/{}.csv'.format(s), index_label="Date")
-#    except Exception:
-#        print 'Unable to downloaddata for symbol: {}'
+def download_symbol(s, start_date, end_date):
+    try:
+        dframe = web.DataReader(name= s, data_source = 'yahoo', start = start_date, end = end_date)
+        dframe.to_csv(proj_path + '/data/{}.csv'.format(s), index_label="Date")
+    except Exception:
+        print 'Unable to downloaddata for symbol: {}'
+         
          
 #symbols can be either a list of symbols or a portfolio name     
 def download_hist_data(symbols, start_date, end_date):
@@ -64,11 +64,11 @@ def download_hist_data(symbols, start_date, end_date):
     for s in symbols: 
         print 'searching file {}.csv'.format(s)                              
         if os.path.isfile(proj_path + '/data/{}.csv'.format(s)) is False:
-            print 'File Not Found: ' + proj_path + '/data/{}.csv'.format(s)
+#            print 'File Not Found: ' + proj_path + '/data/{}.csv'.format(s)
             try:                    
-                print 'Downloading data from Yahoo for symbos {}'.format(s)                     
+                print 'Downloading data for symbol {}'.format(s)                     
                 dframe = web.DataReader(name=s, data_source='yahoo', start=start_date, end=end_date)                    
-                print 'writing to file %s symbol' %s
+#                print 'writing to file %s symbol' %s
     
                 dframe.to_csv(proj_path + '/data/{}.csv'.format(s), index_label="Date")
                 symbols_loaded.append(s)
@@ -113,8 +113,8 @@ def get_data(symbols, dates):
             df = df.join(df_temp)
             if symbol == 'SPY': #drop dates SPY did not trade
                 df = df.dropna(subset=["SPY"])
-        else:
-            download_symbol(symbol)                        
+#        else:
+#            download_symbol(symbol)                        
     return df
     
 def performance_metric_r2(y_true, y_predict):    
