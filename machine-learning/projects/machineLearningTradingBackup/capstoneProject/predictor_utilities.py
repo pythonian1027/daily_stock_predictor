@@ -16,7 +16,9 @@ import os
 import sys
 import pickle
 
-proj_path = os.getcwd()
+cwd = os.getcwd()
+os.chdir('../')
+proj_path = os.getcwd()  
 
 
 def load_symbols(filename, path=proj_path):        
@@ -110,7 +112,10 @@ def get_data(symbols, dates):
             df_temp = pd.read_csv(symbol_to_path(symbol), index_col='Date', 
                 parse_dates = True, usecols=['Date', 'Adj Close'], na_values=['nan'])
             df_temp = df_temp.rename(columns = {'Adj Close': symbol})
-            df = df.join(df_temp)
+            try:
+                df = df.join(df_temp)
+            except:
+                continue                
             if symbol == 'SPY': #drop dates SPY did not trade
                 df = df.dropna(subset=["SPY"])
 #        else:
