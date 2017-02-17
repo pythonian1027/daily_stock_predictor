@@ -245,6 +245,10 @@ if __name__ == "__main__":
     
     svr_weigthed = list()
     svr_unweighted = list()
+    hits_list = list()
+    returns_list = list()
+    r2_list = list()
+    
     
 
     year = (datetime.datetime.now()).year
@@ -360,12 +364,60 @@ if __name__ == "__main__":
     #    Calculate Benchmark Results (SPY results for the same test period)
         idx_test = frame_db_test.index    
         bframe = SPY.ix[idx_test, ['SPY']]
-        print_benchmark_return(bframe)
+#        print_benchmark_return(bframe)
             
                                     
         asset_ret = np.float64(results.ix[:, 'Asset return'].sum())                                
         svr_weigthed.append(asset_ret)
-        svr_unweighted.append(results.ix[:, 'returns'].sum())
+        #create random weights 0<w<1 , and sum(weights) = 1
+        rand_s = np.random.rand(results.shape[0])
+        rand_w = rand_s/sum(rand_s)
+        random_returns = np.dot(results.ix[:, 'returns'], rand_w)
+        svr_unweighted.append(random_returns)
         
+        #highest hits per portfolio
+        tmp = results.round(3).sort_values(by = 'hits', ascending = False)  
+        name = tmp.ix[0, ].name
+        value = tmp.ix[0,].hits.round(3)
+        hits_list.append((name, value))
         
-                                                      
+        #highest r2 per portfolio
+        tmp = results.round(3).sort_values(by = 'R2', ascending = False)  
+        name = tmp.ix[0, ].name
+        value = tmp.ix[0,].R2.round(3)
+        r2_list.append((name, value))        
+        
+        #highest returns per portfolio
+        tmp = results.round(3).sort_values(by = 'returns', ascending = False)  
+        name = tmp.ix[0, ].name
+        value = tmp.ix[0,].returns.round(3)
+        returns_list.append((name, value))   
+        
+        if np.mod(k+1, 4500) == 0:
+            weight_vs_unweight = np.array([svr_weigthed, svr_unweighted])
+            filename1 = 'weight_vs_unweight_'+str(k+1) + '.pkl'
+            with open(filename1, 'wb') as handle:
+                pickle.dump(weight_vs_unweight, handle, protocol = pickle.HIGHEST_PROTOCOL)
+                
+            filename2 = 'hits_' + str(k+1) + '.pkl'               
+            with open(filename2, 'wb') as handle:
+                pickle.dump(hits_list, handle, protocol = pickle.HIGHEST_PROTOCOL)                
+    
+            filename3 = 'r2_' + str(k+1) + '.pkl'
+            with open(filename3, 'wb') as handle:
+                pickle.dump(r2_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                
+            filename4 = 'returns_' + str(k+1) + '.pkl'
+            with open(filename4, 'wb') as handle:
+                pickle.dump(returns_list, handle, protocol=pickle.HIGHEST_PROTOCOL)                
+                
+#        
+#        with open('weight_vs_unweight.pickle', 'wb') as handle:
+#            pickle.dump(weight_vs_unweight, handle, protocol=pickle.HIGHEST_PROTOCOL)
+#
+#        with open('weight_vs_unweight.pickle', 'rb') as f:
+#            b = pickle.load(f)
+#        
+#        weight_vs_unweight = np.array([svr_weigthed, svr_unweighted])
+#        shape  = 2, 4521
+                   
