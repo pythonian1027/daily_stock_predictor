@@ -374,7 +374,7 @@ if __name__ == "__main__":
                                                       
     today = idx_test[-1].date()
     print '\n'
-    print '#'*30 + '  FORECAST  ' + '#'*30   
+    print '#'*34 + '  FORECAST  ' + '#'*35   
     print '\nRecommendations for today\'s date: {}\n'.format(today)
     
     predictions = list()    
@@ -395,4 +395,73 @@ if __name__ == "__main__":
     print df_pred.round(3)    
         
     print '\n' + '#'*80     
+    
+ #==============================================================================
+    rets = np.log(data/data.shift(1))    
+    rets.cov()*252
+    
+    pd.scatter_matrix(rets, alpha = 0.3, figsize = (14, 8), diagonal = 'kde')    
+    
+    
+    # specify plot style and set color scheme
+    import seaborn as sns
+    sns.set_style('ticks')
+    with sns.color_palette("Reds_r"):
+        # plot densities of log-transformed data
+        plt.figure(figsize=(8,4))
+        for col in data.columns:
+            sns.kdeplot(rets[col], shade=True)
+        plt.legend(loc=2);
+    print 'Log-transformed feature distributions'
+    
 #==============================================================================
+#     Lag_plot
+
+    from pandas.tools.plotting import lag_plot        
+    for s in list(data.columns):
+        plt.figure()
+        lag_plot(data.ix[:,s])
+#==============================================================================        
+# Autocorrelation   
+    from pandas.tools.plotting import autocorrelation_plot  
+    for s in list(data.columns):
+        plt.figure()
+        autocorrelation_plot(data.ix[:,s])      
+        
+#==============================================================================
+#http://stackoverflow.com/questions/22179119/normality-test-of-a-distribution-in-python  
+#    array = np.random.randn(10000)                
+
+    from matplotlib import pyplot as plt
+    import matplotlib.mlab as mlab
+    for s in list(data.columns):
+        plt.figure()
+        array = np.array((rets.ix[:, s]).dropna())    
+        n, bins, patches = plt.hist(array, 100, normed=1)
+        mu = np.mean(array)
+        sigma = np.std(array)
+        plt.plot(bins, mlab.normpdf(bins, mu, sigma))
+        plt.title(s)
+#==============================================================================
+# KMeans
+    rets = rets.dropna()        
+    from sklearn.cluster import KMeans
+    import renders as rs
+    for i in range(5,1,-1):
+        kmeans = KMeans(n_clusters = i, n_init = 3, random_state = 4)
+        clusterer = kmeans.fit(rets)
+    
+        # TODO: Predict the cluster for each data point
+        preds = clusterer.predict(rets)
+        
+        # TODO: Find the cluster centers
+        centers = clusterer.cluster_centers_
+    
+        # TODO: Calculate the mean silhouette coefficient for the number of clusters chosen
+        from sklearn.metrics import silhouette_score
+        score = silhouette_score(rets, preds)
+        #dframe = pd.DataFrame(i, columns = ['Num of Cluster', 'Slihouette Score'])
+        print "cluster: ", i, ", score: ",  score  
+        
+        # Display the results of the clustering from implementation
+        rs.cluster_results(reduced_data, preds, centers, pca_samples)
